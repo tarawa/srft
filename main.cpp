@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
     double seconds = diff.count();
     
     // change to output to file if -o set
-    if (savename != nullptr) {
+    if (savename != nullptr && n < 33) {
         std::cout << "arr: ";
         for (int i = 0; i < n; ++i) {
             std::cout << arr[i] << " ";

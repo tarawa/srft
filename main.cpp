@@ -11,6 +11,14 @@
 // Helper Functions
 // =================
 
+// make random double array
+void rand_double_array(double *a, const int n, const int seed) {
+    std::srand(seed);
+    for (int i = 0; i < n; ++i) {
+        a[i] = static_cast<double>(std::rand());
+    }
+}
+
 // Command Line Option Processing
 int find_arg_idx(int argc, char** argv, const char* option) {
     for (int i = 1; i < argc; ++i) {
@@ -50,19 +58,22 @@ int main(int argc, char** argv) {
     if (find_arg_idx(argc, argv, "-h") >= 0) {
         std::cout << "Options:" << std::endl;
         std::cout << "-h: see this help" << std::endl;
-        std::cout << "-n <int>: set number of particles" << std::endl;
+        std::cout << "-n <int>: log2 of array size" << std::endl;
         std::cout << "-o <filename>: set the output file name" << std::endl;
         std::cout << "-s <int>: set particle initialization seed" << std::endl;
         return 0;
     }
 
     // Open Output File
-    // char* savename = find_string_option(argc, argv, "-o", nullptr);
+    char* savename = find_string_option(argc, argv, "-o", nullptr);
     // std::ofstream fsave(savename);
 
-    // Initialize Particles
-    int num_parts = find_int_arg(argc, argv, "-n", 1000);
+    // Initialize
+    // int num_parts = find_int_arg(argc, argv, "-n", 1000);
     int part_seed = find_int_arg(argc, argv, "-s", 0);
+    int n = 1<<find_int_arg(argc, argv, "-n", 3);
+    double * arr = new double[n];
+    rand_double_array(arr, n, part_seed);
 
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
@@ -85,14 +96,25 @@ int main(int argc, char** argv) {
 //             }
 //         }
 //     }
-    do_stuff();
+    fwht(arr, n);
 
     auto end_time = std::chrono::steady_clock::now();
 
     std::chrono::duration<double> diff = end_time - start_time;
     double seconds = diff.count();
+    
+    // change to output to file if -o set
+    if (savename != nullptr) {
+        std::cout << "arr: ";
+        for (int i = 0; i < n; ++i) {
+            std::cout << arr[i] << " ";
+        }
+        std::cout << "\n";
+    }
+    
 
+    delete[] arr;
     // Finalize
-    std::cout << "Simulation Time = " << seconds << " seconds for " << num_parts << " particles.\n";
+    std::cout << "Simulation Time = " << seconds << " seconds for arr of size " << n << ".\n";
     // fsave.close();
 }

@@ -19,6 +19,15 @@ void rand_double_array(double *a, const int n, const int seed) {
     }
 }
 
+void rand_complex_array(Complex *a, const int n, const int seed) {
+    std::srand(seed);
+    for (int i = 0; i < n; ++i) {
+        double d1 = static_cast<double>(std::rand());
+        double d2 = static_cast<double>(std::rand());
+        a[i] = Complex(d1, d2);
+    }
+}
+
 // Command Line Option Processing
 int find_arg_idx(int argc, char** argv, const char* option) {
     for (int i = 1; i < argc; ++i) {
@@ -61,6 +70,7 @@ int main(int argc, char** argv) {
         std::cout << "-n <int>: log2 of array size" << std::endl;
         std::cout << "-o <filename>: set the output file name" << std::endl;
         std::cout << "-s <int>: set particle initialization seed" << std::endl;
+        std::cout << "-t <str>: the transform: one of {fwht, dft, idft}" << std::endl;
         return 0;
     }
 
@@ -68,12 +78,18 @@ int main(int argc, char** argv) {
     char* savename = find_string_option(argc, argv, "-o", nullptr);
     // std::ofstream fsave(savename);
 
+    char* ttype = find_string_option(argc, argv, "-t", nullptr);
+    if (ttype == nullptr) {
+        std::cout << "You must enter transform type!\n";
+        exit(-1);
+    }
     // Initialize
     // int num_parts = find_int_arg(argc, argv, "-n", 1000);
     int part_seed = find_int_arg(argc, argv, "-s", 0);
-    int n = 1<<find_int_arg(argc, argv, "-n", 3);
-    double * arr = new double[n];
-    rand_double_array(arr, n, part_seed);
+    int n = find_int_arg(argc, argv, "-n", 3);
+    if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) n = 1 << n;
+    Complex *arr = new Complex[n];
+    rand_complex_array(arr, n, part_seed);
 
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
@@ -96,7 +112,18 @@ int main(int argc, char** argv) {
 //             }
 //         }
 //     }
-    fwht(arr, n);
+    if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) {
+        fwht(arr, n);
+    } else if (!strcmp(ttype, "dft")) {
+        dft(arr, n);
+    } else if (!strcmp(ttype, "idft")) {
+        idft(arr, n);
+    } else {
+        std::cout << "Not a supported transform type!\n";
+        delete[] arr;
+        exit(-1);
+    }
+    
 
     auto end_time = std::chrono::steady_clock::now();
 

@@ -20,6 +20,21 @@ void fwht(Complex a[], const int n) {
     }
 }
 
+void fwht(ComplexArr &a) {
+    int h = 1;
+    while (h < a.n) {
+        for (int i = 0; i < a.n; i += h * 2) {
+            for (int j = i; j < i + h; ++j) {
+                std::pair<double, double> x = a[j];
+                std::pair<double, double> y = a[j + h];
+                a.set(x.first + y.first, x.second + y.second, j);
+                a.set(x.first - y.first, x.second - y.second, j + h);
+            }
+        }
+        h *= 2;
+    }
+}
+
 void fft(Complex w[], int N) {
     for (int i = 0; i <= N; ++i) w[i] = Complex(cos(2. * PI * i / N), sin(2. * PI * i / N));
 }

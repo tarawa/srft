@@ -21,6 +21,22 @@ void fwht(Complex* a, const int n) {
     }
 }
 
+void fwht(ComplexArr &a) {
+    int h = 1;
+    while (h < a.n) {
+        #pragma omp parallel for
+        for (int i = 0; i < a.n; i += h * 2) {
+            for (int j = i; j < i + h; ++j) {
+                std::pair<double, double> x = a[j];
+                std::pair<double, double> y = a[j + h];
+                a[j] = PAIR_PLUS(x, y);
+                a[j + h] = PAIR_PLUS(x, y);
+            }
+        }
+        h *= 2;
+    }
+}
+
 void fft(Complex w[], int N) {
     for (int i = 0; i <= N; ++i) w[i] = Complex(cos(2. * PI * i / N), sin(2. * PI * i / N));
 }

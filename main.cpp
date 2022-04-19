@@ -28,6 +28,16 @@ void rand_complex_array(Complex *a, const int n, const int seed) {
     }
 }
 
+
+void rand_ComplexArr(ComplexArr &a, const int seed) {
+    std::srand(seed);
+    for (int i = 0; i < a.n; ++i) {
+        double d1 = static_cast<double>(std::rand());
+        double d2 = static_cast<double>(std::rand());
+        a.set(d1, d2, i);
+    }
+}
+
 // Command Line Option Processing
 int find_arg_idx(int argc, char** argv, const char* option) {
     for (int i = 1; i < argc; ++i) {
@@ -88,8 +98,10 @@ int main(int argc, char** argv) {
     int part_seed = find_int_arg(argc, argv, "-s", 0);
     int n = find_int_arg(argc, argv, "-n", 3);
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) n = 1 << n;
-    Complex *arr = new Complex[n];
-    rand_complex_array(arr, n, part_seed);
+    // Complex *arr = new Complex[n];
+    // rand_complex_array(arr, n, part_seed);
+    ComplexArr arr(n);
+    rand_ComplexArr(arr, part_seed);
 
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
@@ -113,14 +125,14 @@ int main(int argc, char** argv) {
 //         }
 //     }
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) {
-        fwht(arr, n);
+        fwht(arr);
     } else if (!strcmp(ttype, "dft")) {
-        dft(arr, n);
+        // dft(arr, n);
     } else if (!strcmp(ttype, "idft")) {
-        idft(arr, n);
+        // idft(arr, n);
     } else {
         std::cout << "Not a supported transform type!\n";
-        delete[] arr;
+        // delete[] arr;
         exit(-1);
     }
     
@@ -134,13 +146,13 @@ int main(int argc, char** argv) {
     if (savename != nullptr && n < 33) {
         std::cout << "arr: ";
         for (int i = 0; i < n; ++i) {
-            std::cout << arr[i] << " ";
+            std::cout << "(" << arr[i].first << " " << arr[i].second << ")";
         }
         std::cout << "\n";
     }
     
 
-    delete[] arr;
+    // delete[] arr;
     // Finalize
     std::cout << "Simulation Time = " << seconds << " seconds for arr of size " << n << ".\n";
     // fsave.close();

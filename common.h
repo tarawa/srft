@@ -79,11 +79,7 @@ class ComplexArr {
     }
 };
 
-
-#define PAIR_PLUS(p1, p2) (std::pair<double, double> {p1.first + p2.first, p1.second + p2.second})
-// inline std::pair<double, double> std::pair<double, double>::operator+(std::pair<double, double> &p1, std::pair<double, double> &p2) {
-//     return std::pair<double, double> {p1.first + p2.first, p1.second + p2.second};
-// }
+#define CA_SET(arr, re, im, index) ((arr).rs[(index)] = (re)); ((arr).is[(index)] = (im));
 
 void do_stuff(void);
 

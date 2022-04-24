@@ -34,7 +34,7 @@ void rand_ComplexArr(ComplexArr &a, const int seed) {
     for (int i = 0; i < a.n; ++i) {
         double d1 = static_cast<double>(std::rand());
         double d2 = static_cast<double>(std::rand());
-        a.set(d1, d2, i);
+        CA_SET(a, d1, d2, i);
     }
 }
 

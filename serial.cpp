@@ -27,8 +27,8 @@ void fwht(ComplexArr &a) {
             for (int j = i; j < i + h; ++j) {
                 std::pair<double, double> x = a[j];
                 std::pair<double, double> y = a[j + h];
-                a.set(x.first + y.first, x.second + y.second, j);
-                a.set(x.first - y.first, x.second - y.second, j + h);
+                CA_SET(a, x.first + y.first, x.second + y.second, j);
+                CA_SET(a, x.first - y.first, x.second - y.second, j + h);
             }
         }
         h *= 2;

@@ -81,6 +81,7 @@ int main(int argc, char** argv) {
         std::cout << "-o <filename>: set the output file name" << std::endl;
         std::cout << "-s <int>: set particle initialization seed" << std::endl;
         std::cout << "-t <str>: the transform: one of {fwht, dft, idft}" << std::endl;
+        std::cout << "-d <str>: number of elements to sample. must be <= n" << std::endl;
         return 0;
     }
 
@@ -97,6 +98,7 @@ int main(int argc, char** argv) {
     // int num_parts = find_int_arg(argc, argv, "-n", 1000);
     int part_seed = find_int_arg(argc, argv, "-s", 0);
     int n = find_int_arg(argc, argv, "-n", 3);
+    int d = find_int_arg(argc, argv, "-n", 2);
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) n = 1 << n;
     // Complex *arr = new Complex[n];
     // rand_complex_array(arr, n, part_seed);

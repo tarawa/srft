@@ -35,6 +35,35 @@ void fwht(ComplexArr &a) {
     }
 }
 
+/* 
+* @params r: d random indices
+* @params f: vector of n random signs (-1 or +1)
+* @params perm: permutation vector, to permute a
+* @params a: array to be srft'd
+* @params sa: array pre-sampling
+* @params dest: destination to store result in
+* @params transform: the transformation function
+*/
+void srft(int* r, double* f, int* perm, ComplexArr &a, ComplexArr &sa, ComplexArr &dest, void (*transform) (ComplexArr)) {
+    // apply perm and random signs
+    if (&a != &sa) {
+        // not in place
+        for (int i = 0; i < a.n; ++i) {
+            CA_SET(sa, a[perm[i]].first * f[i], a[perm[i]].second * f[i], i) ;
+        }
+    } else {
+        // in place
+
+    }
+    // apply transform
+    transform(sa);
+    // sample and multiply by sqrt(n/d)
+    double mult_fac = sqrt(static_cast<double>(dest.n)/static_cast<double>(a.n));
+    for (int i = 0; i < dest.n; ++i) {
+        CA_SET(dest, mult_fac * sa[r[i]].first, mult_fac * sa[r[i]].second, i);
+    }
+}
+
 void fft(Complex w[], int N) {
     for (int i = 0; i <= N; ++i) w[i] = Complex(cos(2. * PI * i / N), sin(2. * PI * i / N));
 }

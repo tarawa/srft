@@ -1,4 +1,5 @@
 #include "common.h"
+#include <cuda.h>
 
 // make sure compilation works, delete later
 void do_stuff(void) {

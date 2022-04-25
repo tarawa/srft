@@ -6,35 +6,36 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <algorithm>
 
 // =================
 // Helper Functions
 // =================
 
 // make random double array
-void rand_double_array(double *a, const int n, const int seed) {
-    std::srand(seed);
-    for (int i = 0; i < n; ++i) {
-        a[i] = static_cast<double>(std::rand());
-    }
+
+void rand_double_array(double* a, const int n, const int seed) {
+    static std::default_random_engine gen(seed);
+    static std::uniform_real_distribution<> dis(-1000.0, 1000.0);
+    for (int i = 0; i < n; ++i)
+        a[i] = dis(gen);
 }
 
-void rand_complex_array(Complex *a, const int n, const int seed) {
+void rand_sign_array(int* f, const int n, const int seed) {
     std::srand(seed);
-    for (int i = 0; i < n; ++i) {
-        double d1 = static_cast<double>(std::rand());
-        double d2 = static_cast<double>(std::rand());
-        a[i] = Complex(d1, d2);
-    }
+    for (int i = 0; i < n; ++i)
+        f[i] = 1 - (2 * (rand() % 2));
 }
 
-
-void rand_ComplexArr(ComplexArr &a, const int seed) {
+void rand_permutation(int* p, const int n, const int d, const int seed) {
     std::srand(seed);
-    for (int i = 0; i < a.n; ++i) {
-        double d1 = static_cast<double>(std::rand());
-        double d2 = static_cast<double>(std::rand());
-        CA_SET(a, d1, d2, i);
+    int perm_start[n];
+    for (int i = 0; i < n; ++i) {
+        perm_start[i] = i;
+    }
+    std::random_shuffle(perm_start, perm_start + n - 1);
+    for (int i = 0; i < d; ++i) {
+        p[i] = perm_start[i];
     }
 }
 
@@ -96,15 +97,20 @@ int main(int argc, char** argv) {
     }
     // Initialize
     // int num_parts = find_int_arg(argc, argv, "-n", 1000);
-    int part_seed = find_int_arg(argc, argv, "-s", 0);
+    int s = find_int_arg(argc, argv, "-s", 0);
     int n = find_int_arg(argc, argv, "-n", 3);
-    int d = find_int_arg(argc, argv, "-n", 2);
+    int d = find_int_arg(argc, argv, "-d", 2);
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) n = 1 << n;
     // Complex *arr = new Complex[n];
     // rand_complex_array(arr, n, part_seed);
-    ComplexArr arr(n);
-    rand_ComplexArr(arr, part_seed);
 
+
+    double* a = new double[n]; rand_double_array(a, n, s);
+    double* space = new double[n];
+    double* sa = new double[d];
+    int* perm = new int[n]; rand_permutation(perm, n, n, s);
+    int* r = new int[d]; rand_permutation(r, n, d, s);
+    int* f = new int[n]; rand_sign_array(f, n, s);
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
 
@@ -127,14 +133,17 @@ int main(int argc, char** argv) {
 //         }
 //     }
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) {
-        fwht(arr);
+        // fwht(a, n);
+        srft(n, d, r, f, perm, a, space, sa, fwht);
     } else if (!strcmp(ttype, "dft")) {
-        // dft(arr, n);
+        // dft(a, n);
+        srft(n, d, r, f, perm, a, space, sa, dft);
     } else if (!strcmp(ttype, "idft")) {
-        // idft(arr, n);
+        // idft(a, n);
+        srft(n, d, r, f, perm, a, space, sa, idft);
     } else {
         std::cout << "Not a supported transform type!\n";
-        // delete[] arr;
+        // delete[] a;
         exit(-1);
     }
     
@@ -145,10 +154,10 @@ int main(int argc, char** argv) {
     double seconds = diff.count();
     
     // change to output to file if -o set
-    if (savename != nullptr && n < 33) {
+    if (savename != nullptr && d < 33) {
         std::cout << "arr: ";
-        for (int i = 0; i < n; ++i) {
-            std::cout << "(" << arr[i].first << " " << arr[i].second << ")";
+        for (int i = 0; i < d; ++i) {
+            std::cout << sa[i] << " ";
         }
         std::cout << "\n";
     }

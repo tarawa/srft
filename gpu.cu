@@ -6,11 +6,11 @@ void do_stuff(void) {
     std::cout << "serial stuff\n";
 }
 
-void fwht(double* a, const int n) {
-    int h = 1;
+void fwht(double* a, const long long n) {
+    long long h = 1;
     while (h < n) {
-        for (int i = 0; i < n; i += h * 2) {
-            for (int j = i; j < i + h; ++j) {
+        for (long long i = 0; i < n; i += h * 2) {
+            for (long long j = i; j < i + h; ++j) {
                 double x = a[j];
                 double y = a[j + h];
                 a[j] = x + y;
@@ -32,11 +32,11 @@ void fwht(double* a, const int n) {
 * @params sa: destination to store result in
 * @params transform: the transformation function
 */
-void srft(int n, int d, int* r, int* f, int* perm, double* a, double* space, double* sa, void (*transform) (double*, int)) {
+void srft(long long n, int d, int* r, int* f, int* perm, double* a, double* space, double* sa, void (*transform) (double*, int)) {
     // apply perm and random signs
     if (a != space) {
         // not in place
-        for (int i = 0; i < n; ++i) {
+        for (long long i = 0; i < n; ++i) {
             space[i] = a[perm[i]] * f[i];
         }
     }
@@ -49,22 +49,22 @@ void srft(int n, int d, int* r, int* f, int* perm, double* a, double* space, dou
     }
 }
 
-void fft(double* w, int N) {
-    for (int i = 0; i <= N; ++i) w[i] = cos(2. * PI * i / N);
+void fft(double* w, long long N) {
+    for (long long i = 0; i <= N; ++i) w[i] = cos(2. * PI * i / N);
 }
 
-void dft(double* a, int N) {
+void dft(double* a, long long N) {
     double w[N];
     fft(w, N);
-    for (int i = 0, j = 0; i < N; ++i) {
+    for (long long i = 0, j = 0; i < N; ++i) {
         if (i < j) std::swap(a[i], a[j]);
-        for (int k = N >> 1; (j ^= k) < k;) k >>= 1;
+        for (long long k = N >> 1; (j ^= k) < k;) k >>= 1;
     }
-    for (int m = 2; m <= N; m *= 2) {
-        int gap = m / 2, step = N / m;
-        for (int i = 0; i < N; i += m) {
+    for (long long m = 2; m <= N; m *= 2) {
+        long long gap = m / 2, step = N / m;
+        for (long long i = 0; i < N; i += m) {
             double *o = w;
-            for (int j = i; j < i + gap; ++j, o += step) {
+            for (long long j = i; j < i + gap; ++j, o += step) {
             double u = a[j], v = *o * a[j + gap];
             a[j] = u + v;
             a[j + gap] = u - v;
@@ -73,8 +73,8 @@ void dft(double* a, int N) {
     }
 }
 
-void idft(double* a, int N) {
+void idft(double* a, long long N) {
     dft(a, N);
     std::reverse(a + 1, a + N);
-    for (int i = 0; i < N; ++i) a[i] /= N;
+    for (long long i = 0; i < N; ++i) a[i] /= N;
 }

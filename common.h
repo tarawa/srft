@@ -9,13 +9,13 @@
 
 void do_stuff(void);
 
-void fwht(double* a, const int n);
+void fwht(double* a, const long long n);
 
-void dft(double* a, const int n);
+void dft(double* a, const long long n);
 
-void fft(double* w, const int n);
+void fft(double* w, const long long n);
 
-void idft(double* a, const int n);
+void idft(double* a, const long long n);
 
-void srft(int n, int d, int* r, int* f, int* perm, double* a, double* sa, double* dest, void (*transform) (double*, int));
+void srft(long long n, int d, int* r, int* f, int* perm, double* a, double* sa, double* dest, void (*transform) (double*, int));
 

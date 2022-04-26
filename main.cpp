@@ -60,6 +60,16 @@ int find_int_arg(int argc, char** argv, const char* option, int default_value) {
     return default_value;
 }
 
+long long find_ll_arg(int argc, char** argv, const char* option, long long default_value) {
+    int iplace = find_arg_idx(argc, argv, option);
+
+    if (iplace >= 0 && iplace < argc - 1) {
+        return std::stoll(argv[iplace + 1]);
+    }
+
+    return default_value;
+}
+
 char* find_string_option(int argc, char** argv, const char* option, char* default_value) {
     int iplace = find_arg_idx(argc, argv, option);
 
@@ -79,7 +89,7 @@ int main(int argc, char** argv) {
     if (find_arg_idx(argc, argv, "-h") >= 0) {
         std::cout << "Options:" << std::endl;
         std::cout << "-h: see this help" << std::endl;
-        std::cout << "-n <int>: log2 of array size" << std::endl;
+        std::cout << "-n <long long>: array size" << std::endl;
         std::cout << "-o <filename>: set the output file name" << std::endl;
         std::cout << "-s <int>: set particle initialization seed" << std::endl;
         std::cout << "-r <int>: rank" << std::endl;
@@ -101,7 +111,7 @@ int main(int argc, char** argv) {
     // int num_parts = find_int_arg(argc, argv, "-n", 1000);
     int s = find_int_arg(argc, argv, "-s", 0);
     int rank = find_int_arg(argc, argv, "-r", 0);
-    int n = find_int_arg(argc, argv, "-n", 3);
+    int n = find_ll_arg(argc, argv, "-n", 3);
     int d = find_int_arg(argc, argv, "-d", 2);
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) n = 1 << n;
     // Complex *arr = new Complex[n];

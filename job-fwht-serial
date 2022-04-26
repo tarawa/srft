@@ -1,0 +1,16 @@
+#!/bin/bash -x
+
+seed=2
+subsampled=15
+output="a"
+type="fwht"
+parallel_type="serial"
+numnodes=1
+
+for rank in 0
+do
+    for n in {4..32}
+    do
+        srun -N $numnodes ./${parallel_type} -n $n -t $type -o $output -d $subsampled -s $seed -r rank >> ${type}-${parallel_type}.out
+    done
+done

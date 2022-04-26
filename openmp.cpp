@@ -49,11 +49,11 @@ void srft(long long n, int d, int* r, int* f, int* perm, double* a, double* spac
     }
 }
 
-void fft(double* w, int N) {
+void fft(double* w, long long N) {
     for (long long i = 0; i <= N; ++i) w[i] = cos(2. * PI * i / N);
 }
 
-void dft(double* a, int N) {
+void dft(double* a, long long N) {
     double w[N];
     fft(w, N);
     for (long long i = 0, j = 0; i < N; ++i) {

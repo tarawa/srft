@@ -7,6 +7,7 @@
 #include <random>
 #include <vector>
 #include <algorithm>
+#include <iomanip>
 
 // =================
 // Helper Functions
@@ -81,6 +82,7 @@ int main(int argc, char** argv) {
         std::cout << "-n <int>: log2 of array size" << std::endl;
         std::cout << "-o <filename>: set the output file name" << std::endl;
         std::cout << "-s <int>: set particle initialization seed" << std::endl;
+        std::cout << "-r <int>: rank" << std::endl;
         std::cout << "-t <str>: the transform: one of {fwht, dft, idft}" << std::endl;
         std::cout << "-d <str>: number of elements to sample. must be <= n" << std::endl;
         return 0;
@@ -98,6 +100,7 @@ int main(int argc, char** argv) {
     // Initialize
     // int num_parts = find_int_arg(argc, argv, "-n", 1000);
     int s = find_int_arg(argc, argv, "-s", 0);
+    int rank = find_int_arg(argc, argv, "-r", 0);
     int n = find_int_arg(argc, argv, "-n", 3);
     int d = find_int_arg(argc, argv, "-d", 2);
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) n = 1 << n;
@@ -165,6 +168,6 @@ int main(int argc, char** argv) {
 
     // delete[] arr;
     // Finalize
-    std::cout << "Simulation Time = " << seconds << " seconds for arr of size " << n << " using transform " << ttype << " with seed " << s << " and d " << d <<".\n";
+    std::cout << std::fixed << "Simulation Time = " << seconds << " seconds for arr of size " << n << " using transform " << ttype << " with seed " << s << " and d " << d << " and rank " << rank << ".\n";
     // fsave.close();
 }

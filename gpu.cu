@@ -32,7 +32,7 @@ void fwht(double* a, const long long n) {
 * @params sa: destination to store result in
 * @params transform: the transformation function
 */
-void srft(long long n, int d, int* r, int* f, int* perm, double* a, double* space, double* sa, void (*transform) (double*, int)) {
+void srft(long long n, int d, int* r, int* f, int* perm, double* a, double* space, double* sa, void (*transform) (double*, long long)) {
     // apply perm and random signs
     if (a != space) {
         // not in place

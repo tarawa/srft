@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
     // int num_parts = find_int_arg(argc, argv, "-n", 1000);
     int s = find_int_arg(argc, argv, "-s", 0);
     int rank = find_int_arg(argc, argv, "-r", 0);
-    int n = find_ll_arg(argc, argv, "-n", 3);
+    long long n = find_ll_arg(argc, argv, "-n", 3);
     int d = find_int_arg(argc, argv, "-d", 2);
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) n = 1 << n;
     // Complex *arr = new Complex[n];

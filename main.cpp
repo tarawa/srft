@@ -103,7 +103,10 @@ int main(int argc, char** argv) {
     int rank = find_int_arg(argc, argv, "-r", 0);
     int n = find_int_arg(argc, argv, "-n", 3);
     int d = find_int_arg(argc, argv, "-d", 2);
-    if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) n = 1 << n;
+    assert(d <= n);
+    // if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt"))
+        n = 1 << n;
+        d = 1 << d;
     // Complex *arr = new Complex[n];
     // rand_complex_array(arr, n, part_seed);
 
@@ -114,6 +117,15 @@ int main(int argc, char** argv) {
     int* perm = new int[n]; rand_permutation(perm, n, n, s);
     int* r = new int[d]; rand_permutation(r, n, d, s);
     int* f = new int[n]; rand_sign_array(f, n, s);
+
+    // if (savename != nullptr && d < 33) {
+    //     std::cout << "perm: ";
+    //     for (int i = 0; i < d; ++i) {
+    //         std::cout << perm[i] << " ";
+    //     }
+    //     std::cout << "\n";
+    // }
+
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
 
@@ -138,12 +150,18 @@ int main(int argc, char** argv) {
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) {
         // fwht(a, n);
         srft(n, d, r, f, perm, a, space, sa, fwht);
-    } else if (!strcmp(ttype, "dft")) {
+    } else if (!strcmp(ttype, "dft") || !strcmp(ttype, "fft")) {
         // dft(a, n);
         srft(n, d, r, f, perm, a, space, sa, dft);
-    } else if (!strcmp(ttype, "idft")) {
+    } else if (!strcmp(ttype, "idft") || !strcmp(ttype, "ifft")) {
         // idft(a, n);
         srft(n, d, r, f, perm, a, space, sa, idft);
+    } else if (!strcmp(ttype, "dfts") || !strcmp(ttype, "ffts")) {
+        // fft(a, n);
+        srft_nlogd(n, d, r, f, perm, a, space, sa, dft_subsampled);
+    } else if (!strcmp(ttype, "fwhts") || !strcmp(ttype, "fwts")) {
+        // fft(a, n);
+        srft_nlogd(n, d, r, f, perm, a, space, sa, fwht_subsampled);
     } else {
         std::cout << "Not a supported transform type!\n";
         // delete[] a;
@@ -165,8 +183,12 @@ int main(int argc, char** argv) {
         std::cout << "\n";
     }
     
-
-    // delete[] arr;
+    delete[] a;
+    delete[] sa;
+    delete[] space;
+    delete[] perm;
+    delete[] r;
+    delete[] f;
     // Finalize
     std::cout << std::fixed << "Simulation Time = " << seconds << " seconds for arr of size " << n << " using transform " << ttype << " with seed " << s << " and d " << d << " and rank " << rank << ".\n";
     // fsave.close();

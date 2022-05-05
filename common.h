@@ -23,9 +23,9 @@ void fft_subsampled(double* a, int n, int d);
 
 void srft_nlogd(int n, int d, int* r, int* f, int* perm, double* a, double* space, double* sa, void (*transform) (double*, int, int, int*, double*));
 
-void dft_subsampled(double* v, int n, int d, int* perm, double* sa);
+void dft_subsampled(double* v, int n, int d, int* r, double* sa);
 
-void fwht_subsampled(double* v, int n, int d, int* perm, double* sa);
+void fwht_subsampled(double* v, int n, int d, int* r, double* sa);
 
 static inline void transpose(double* a, int width, int height);
 

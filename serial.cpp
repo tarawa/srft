@@ -60,7 +60,7 @@ void srft_nlogd(int n, int d, int* r, int* f, int* perm, double* a, double* spac
         }
     }
 
-    transform(space, n, d, perm, sa);
+    transform(space, n, d, r, sa);
 
     double mult_fac = sqrt(static_cast<double>(d)/static_cast<double>(n));
     for (int i = 0; i < d; ++i) {
@@ -82,7 +82,7 @@ static inline void transpose(double* a, int width, int height) {
 //nlogd
 //assumes n is divisible by d
 // https://edoliberty.github.io/papers/approximationOfMatrices.pdf
-void dft_subsampled(double* v, int n, int d, int* perm, double* sa) {
+void dft_subsampled(double* v, int n, int d, int* r, double* sa) {
     // Viewing the vector v as an l×m matrix V stored in row-major order, form the product W of the l×l unnormalized discrete Fourier transform F(l) and V , so that...
     int m = n/d;
     for (int i = 0; i < m; ++i)
@@ -98,7 +98,7 @@ void dft_subsampled(double* v, int n, int d, int* perm, double* sa) {
     double w[n];
     fft(w, n);
     for (int i = 0; i < d; ++i) {
-        int index = perm[i];
+        int index = r[i];
         sa[i] = dft_single(v, m, d, w, index);
     }
 }

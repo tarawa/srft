@@ -152,30 +152,39 @@ int main(int argc, char** argv) {
         std::cout << "Not a supported transform type!\n";
         return -1;
     }
-
-    for (int b = 0; b < B; ++b) {
-        rand_double_array(a, n, N);
-        if (!strcmp(ttype, "fwht") || !strcmp(ttype, "dft") || !strcmp(ttype, "dct")) {
-            srft(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
-        } else {
-            srft_nlogd(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
-        }
-        if (fsave.good()) {
-            fsave << b << "-th column (real part): ";
-            for (int i = 0; i < d; ++i) {
-                fsave << sa_re[i] << " ";
+#ifdef _OPENMP
+#pragma omp parallel default(shared)
+#endif
+    {
+        for (int b = 0; b < B; ++b) {
+            rand_double_array(a, n, N);
+            if (!strcmp(ttype, "fwht") || !strcmp(ttype, "dft") || !strcmp(ttype, "dct")) {
+                srft(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
+            } else {
+                srft_nlogd(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
             }
-            fsave << std::endl;
-            if (transform == Transform::fourier) {
-                fsave << b << "-th column (imaginary part): ";
-                for (int i = 0; i < d; ++i) {
-                    fsave << sa_im[i] << " ";
+
+#ifdef _OPENMP
+#pragma omp master
+#endif
+            {
+                if (fsave.good()) {
+                    fsave << b << "-th column (real part): ";
+                    for (int i = 0; i < d; ++i) {
+                        fsave << sa_re[i] << " ";
+                    }
+                    fsave << std::endl;
+                    if (transform == Transform::fourier) {
+                        fsave << b << "-th column (imaginary part): ";
+                        for (int i = 0; i < d; ++i) {
+                            fsave << sa_im[i] << " ";
+                        }
+                        fsave << std::endl;
+                    }
                 }
-                fsave << std::endl;
             }
         }
     }
-
 
     auto end_time = std::chrono::steady_clock::now();
 

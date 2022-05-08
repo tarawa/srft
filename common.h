@@ -22,7 +22,7 @@ const double PI = acos(-1.0);
 
 void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform);
 void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform);
-void srft(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform);
-void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform);
+void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *a_re, double *a_im, const int *r, Transform transform);
+void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, const double *a, double *a_re, double *a_im, Transform transform);
 
 #endif

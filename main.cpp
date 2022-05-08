@@ -78,6 +78,7 @@ int main(int argc, char** argv) {
         std::cout << "-r <int>: rank" << std::endl;
         std::cout << "-t <str>: the transform: one of {fwht, dft, dct}" << std::endl;
         std::cout << "-d <str>: number of elements to sample. must be <= N" << std::endl;
+        std::cout << "-B <str>: number of columns of A (default B=1)" << std::endl;
         return 0;
     }
 
@@ -96,6 +97,7 @@ int main(int argc, char** argv) {
     int n_ranks = find_int_arg(argc, argv, "-r", 0);
     int n = find_int_arg(argc, argv, "-n", 3);
     int d = find_int_arg(argc, argv, "-d", 2);
+    int B = find_int_arg(argc, argv, "-B", 1);
     int N = 1;
     while (N <= n) N *= 2;
     assert(d <= n);
@@ -106,7 +108,7 @@ int main(int argc, char** argv) {
     // Complex *arr = new Complex[n];
     // rand_complex_array(arr, n, part_seed);
 
-    double* a = new double[N]; rand_double_array(a, n, N);
+    double* a = new double[N];
     double* sa_re = new double[d], *sa_im = new double[d];
     int* perm = new int[N]; rand_permutation(perm, N);
     int* r = new int[d]; rand_r(r, N, d);
@@ -140,7 +142,7 @@ int main(int argc, char** argv) {
 //         }
 //     }
     Transform transform;
-    if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwts")) {
+    if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwhts")) {
         transform = Transform::walsh;
     } else if (!strcmp(ttype, "dft") || !strcmp(ttype, "dfts")) {
         transform = Transform::fourier;
@@ -150,11 +152,16 @@ int main(int argc, char** argv) {
         std::cout << "Not a supported transform type!\n";
         return -1;
     }
-    if (!strcmp(ttype, "fwht") || !strcmp(ttype, "dft") || !strcmp(ttype, "dct")) {
-        srft(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
-    } else {
-        srft_nlogd(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
+
+    for (int b = 0; b < B; ++b) {
+        rand_double_array(a, n, N);
+        if (!strcmp(ttype, "fwht") || !strcmp(ttype, "dft") || !strcmp(ttype, "dct")) {
+            srft(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
+        } else {
+            srft_nlogd(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
+        }
     }
+
 
     auto end_time = std::chrono::steady_clock::now();
 
@@ -162,7 +169,7 @@ int main(int argc, char** argv) {
     double seconds = diff.count();
     
     // change to sa to file if -o set
-    if (savename != nullptr && d < 33) {
+    if (savename != nullptr) {
         std::cout << "arr: ";
         for (int i = 0; i < d; ++i) {
             std::cout << sa_re[i] << " ";
@@ -177,6 +184,6 @@ int main(int argc, char** argv) {
     delete[] r;
     delete[] f;
     // Finalize
-    std::cout << std::fixed << "Simulation Time = " << seconds << " seconds for arr of size " << n << " using transform " << ttype << " with seed " << seed << " and d " << d << " and #ranks " << n_ranks << ".\n";
+    std::cout << std::fixed << "Simulation Time = " << seconds << " seconds for arr of size " << n << " * " << B << " using transform " << ttype << " with seed " << seed << " and d " << d << " and #ranks " << n_ranks << ".\n";
     // fsave.close();
 }

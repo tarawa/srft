@@ -10,7 +10,7 @@
 // make random double array
 std::mt19937 gen;
 
-int generate(int seed) {
+int generate(unsigned seed) {
     return rand_r(&seed);
 }
 

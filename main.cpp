@@ -143,9 +143,9 @@ int main(int argc, char** argv) {
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwts")) {
         transform = Transform::walsh;
     } else if (!strcmp(ttype, "dft") || !strcmp(ttype, "dfts")) {
-        transform = Transform::dft;
+        transform = Transform::fourier;
     } else if (!strcmp(ttype, "dct") || !strcmp(ttype, "dcts")) {
-        transform = Transform::dct;
+        transform = Transform::cosine;
     } else {
         std::cout << "Not a supported transform type!\n";
         return -1;

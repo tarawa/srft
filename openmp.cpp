@@ -76,18 +76,17 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     }
 #pragma omp for collapse(2)
     for (int i = 0; i < d; ++i) {
-        int j = r[i], y = j / m;
-        // m is a power of 2
-        // <j, p | q * m> = <j, p> + <j, q * m> = <j, p> + <j / m, q>
-        // sum_q -1^{<j, p | q * m>} = sum_q -1^{<j, p>} -1^{<j / m, q>}
-        // what we have: sum_q -1^{y * q} for each y
-        double u = 0;
         for (int p = 0; p < m; ++p) {
-            int x = (bit_cnt[j & p] ? -1 : 1);
+            int j = r[i], y = j / m;
+            // m is a power of 2
+            // <j, p | q * m> = <j, p> + <j, q * m> = <j, p> + <j / m, q>
+            // sum_q -1^{<j, p | q * m>} = sum_q -1^{<j, p>} -1^{<j / m, q>}
+            // what we have: sum_q -1^{y * q} for each y
             double v = fwht_re[p * k + y];
-            u += x * v;
+            double x = (bit_cnt[j & p] ? -v : v);
+#pragma omp atomic
+            a[i] += x;
         }
-        a[i] = u;
     }
 }
 
@@ -129,11 +128,10 @@ void fft_parallel(double* a_re, double *a_im, int N, const double *w_re, const d
         int gap = m / 2, step = N / m;
 #pragma omp for collapse(2)
         for (int i = 0; i < N; i += m) {
-            const double *o_re = w_re, *o_im = w_im;
-            for (int j = i; j < i + gap; ++j, o_re += step, o_im += step) {
+            for (int j = i; j < i + gap; ++j) {
                 double u_re = a_re[j], u_im = a_im[j];
-                double v_re = *o_re * a_re[j + gap] - *o_im * a_im[j + gap];
-                double v_im = *o_re * a_im[j + gap] + *o_im * a_re[j + gap];
+                double v_re = w_re[j * step] * a_re[j + gap] - w_im[j * step] * a_im[j + gap];
+                double v_im = w_re[j * step] * a_im[j + gap] + w_im[j * step] * a_re[j + gap];
                 a_re[j] = u_re + v_re;
                 a_im[j] = u_im + v_im;
                 a_re[j + gap] = u_re - v_re;

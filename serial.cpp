@@ -194,9 +194,9 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
         bit_rev = new int[N];
         compute_w(w_re, w_im, N);
         compute_bit_rev(bit_rev, N);
-        w_re = new double[k + 1];
-        w_im = new double[k + 1];
-        bit_rev = new int[k];
+        kw_re = new double[k + 1];
+        kw_im = new double[k + 1];
+        kbit_rev = new int[k];
         compute_w(kw_re, kw_im, k);
         compute_bit_rev(kbit_rev, k);
         dct_x = new double[N + 1];
@@ -226,8 +226,8 @@ void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double
     }
     double scale = sqrt(N / d);
     for (int i = 0; i < d; ++i) {
-        sa_re[i] = srft_re[i] * scale;
-        sa_im[i] = srft_im[i] * scale;
+        sa_re[i] = srft_re[r[i]] * scale;
+        sa_im[i] = srft_im[r[i]] * scale;
     }
 }
 

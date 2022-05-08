@@ -128,8 +128,7 @@ void dct(double *a, int N) {
     }
     fft(dct_re, dct_im, N, w_re, w_im, bit_rev);
     for (int i = 0; i < N; ++i) {
-        double x = 2 * cos(PI * i / 2 / N), y = 2 * sin(PI * i / 2 / N);
-        a[i] = x * dct_re[i] - y * dct_im[i];
+        a[i] = dct_x[i] * dct_re[i] - dct_y[i] * dct_im[i];
     }
 }
 
@@ -138,8 +137,8 @@ void dct_nlogd(double *a, int N, int k, int d, const int *r) {
     for (int i = 0; i < N; ++i) dct_re[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = a[i], dct_im[i] = 0.;
     dft_nlogd(dct_re, dct_im, N, k, d, r);
     for (int i = 0; i < d; ++i) {
-        double x = 2 * cos(PI * i / 2 / N), y = 2 * sin(PI * i / 2 / N);
-        a[i] = x * dct_re[i] - y * dct_im[i];
+        int j = r[i];
+        a[i] = dct_x[j] * dct_re[i] - dct_y[j] * dct_im[i];
     }
 }
 
@@ -174,8 +173,8 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
         dct_x = new double[N + 1];
         dct_y = new double[N + 1];
         for (int i = 0; i <= N; ++i) {
-            dct_x[i] = 2 * cos(PI * i / 2 / N);
-            dct_y[i] = 2 * sin(PI * i / 2 / N);
+            dct_x[i] = 2 * cos(PI * i / 2. / N);
+            dct_y[i] = 2 * sin(PI * i / 2. / N);
         }
     }
 }

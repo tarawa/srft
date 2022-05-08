@@ -2,6 +2,7 @@
 
 #define _COMMON_H
 
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstring>

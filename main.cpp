@@ -10,26 +10,26 @@
 // make random double array
 std::mt19937 gen;
 
-void rand_double_array(double* a, const int n, const int N) {
+void rand_double_array(double *a, const int n, const int N) {
     std::fill(a, a + N, 0.0);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
     for (int i = 0; i < n; ++i) a[i] = dist(gen);
 }
 
-void rand_sign_array(int* f, const int N) {
+void rand_sign_array(int *f, const int N) {
     std::uniform_int_distribution<int> dist(0, 1);
     for (int i = 0; i < N; ++i) f[i] = dist(gen) ? -1 : 1;
 }
 
-void rand_permutation(int* p, const int N) {
+void rand_permutation(int *p, const int N) {
     for (int i = 0; i < N; ++i) p[i] = i;
     std::shuffle(p, p + N, gen);
 }
 
-void rand_subsample(int* p, const int N, const int subsample) {
-    int q = new int [N];
+void rand_r(int *p, const int N, const int r) {
+    int *q = new int[N];
     rand_permutation(q, N);
-    std::copy(q, q + subsample, p);
+    std::copy(q, q + r, p);
 }
 
 // Command Line Option Processing
@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
         std::cout << "-h: see this help" << std::endl;
 //std::cout << "-n <int>: log2 of array size" << std::endl;
         std::cout << "-n <int>: array size" << std::endl;
-        std::cout << "-o <filename>: set the output file name" << std::endl;
+        std::cout << "-o <filename>: set the sa file name" << std::endl;
         std::cout << "-s <int>: set random seed" << std::endl;
         std::cout << "-r <int>: rank" << std::endl;
         std::cout << "-t <str>: the transform: one of {fwht, dft, dct}" << std::endl;
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    // Open Output File
+    // Open sa File
     char* savename = find_string_option(argc, argv, "-o", nullptr);
     // std::ofstream fsave(savename);
 
@@ -106,11 +106,11 @@ int main(int argc, char** argv) {
     // Complex *arr = new Complex[n];
     // rand_complex_array(arr, n, part_seed);
 
-    double* input = new double[N]; rand_double_array(input, n, N);
-    double* output_re = new double[d], *output_im = new double[d];
+    double* a = new double[N]; rand_double_array(a, n, N);
+    double* sa_re = new double[d], *sa_im = new double[d];
     int* perm = new int[N]; rand_permutation(perm, N);
-    int* subsample = new int[d]; rand_subsample(subsample, N, d);
-    int* flip = new int[N]; rand_sign_array(flip, N);
+    int* r = new int[d]; rand_r(r, N, d);
+    int* f = new int[N]; rand_sign_array(f, N);
 
     // if (savename != nullptr && d < 33) {
     //     std::cout << "perm: ";
@@ -139,22 +139,21 @@ int main(int argc, char** argv) {
 //             }
 //         }
 //     }
-    if (!strcmp(ttype, "fwht")) {
-        srft(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::walsh);
-    } else if (!strcmp(ttype, "fft")) {
-        srft(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::fourier);
-    } else if (!strcmp(ttype, "dct")) {
-        srft(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::cosine);
-    } else if (!strcmp(ttype, "ffts")) {
-        srft_nlogd(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::walsh);
-    } else if (!strcmp(ttype, "fwts")) {
-        srft_nlogd(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::fourier);
-    } else if (!strcmp(ttype, "dcts")) {
-        srft_nlogd(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::fourier);
+    Transform transform;
+    if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwts")) {
+        transform = Transform::walsh;
+    } else if (!strcmp(ttype, "dft") || !strcmp(ttype, "dfts")) {
+        transform = Transform::dft;
+    } else if (!strcmp(ttype, "dct") || !strcmp(ttype, "dcts")) {
+        transform = Transform::dct;
     } else {
         std::cout << "Not a supported transform type!\n";
-        // delete[] a;
-        exit(-1);
+        return -1;
+    }
+    if (!strcmp(ttype, "fwht") || !strcmp(ttype, "dft") || !strcmp(ttype, "dct")) {
+        srft(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
+    } else {
+        srft_nlogd(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
     }
 
     auto end_time = std::chrono::steady_clock::now();
@@ -162,22 +161,22 @@ int main(int argc, char** argv) {
     std::chrono::duration<double> diff = end_time - start_time;
     double seconds = diff.count();
     
-    // change to output to file if -o set
+    // change to sa to file if -o set
     if (savename != nullptr && d < 33) {
         std::cout << "arr: ";
         for (int i = 0; i < d; ++i) {
-            std::cout << sa[i] << " ";
+            std::cout << sa_re[i] << " ";
         }
         std::cout << "\n";
     }
-    
+
     delete[] a;
-    delete[] sa;
-    delete[] space;
+    delete[] sa_re;
+    delete[] sa_im;
     delete[] perm;
     delete[] r;
     delete[] f;
     // Finalize
-    std::cout << std::fixed << "Simulation Time = " << seconds << " seconds for arr of size " << n << " using transform " << ttype << " with seed " << s << " and d " << d << " and rank " << rank << ".\n";
+    std::cout << std::fixed << "Simulation Time = " << seconds << " seconds for arr of size " << n << " using transform " << ttype << " with seed " << s << " and d " << d << " and #ranks " << n_ranks << ".\n";
     // fsave.close();
 }

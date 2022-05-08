@@ -24,7 +24,7 @@ void compute_bitcount(int *bit_cnt, int N) {
     }
 }
 
-void fwht_nlogd(double* a, int N, int k, int d, const int *subsample) {
+void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     int m = N / k;
     double *temp = new double[N];
     transpose(a, temp, N, k);
@@ -32,7 +32,7 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *subsample) {
     int *bit_cnt = new int[N];
     compute_bitcount(bit_cnt, N);
     for (int i = 0; i < d; ++i) {
-        int j = subsample[i], y = j / m;
+        int j = r[i], y = j / m;
         // m is a power of 2
         // <j, p | q * m> = <j, p> + <j, q * m> = <j, p> + <j / m, q>
         // sum_q -1^{<j, p | q * m>} = sum_q -1^{<j, p>} -1^{<j / m, q>}
@@ -84,14 +84,14 @@ void fft(double* a_re, double *a_im, int N, const double *w_re, const double *w_
     }
 }
 
-void transpose(const double *input, double *output, int N, int k) {
+void transpose(const double *a, double *sa, int N, int k) {
     int m = N / k;
     for (int i = 0; i < m; ++i)
         for (int j = 0; j < k; ++j)
-            output[i * k + j] = input[j * m + i];
+            sa[i * k + j] = a[j * m + i];
 }
 
-void dft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *subsample) {
+void dft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *r) {
     double *temp_re = new double[N], *temp_im = new double[N];
     int m = N / k;
     transpose(a_re, temp_re, N, k);
@@ -106,7 +106,7 @@ void dft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *subsa
     w_re = new double[N + 1], w_im = new double[N + 1];
     compute_w(w_re, w_im, N);
     for (int i = 0; i < d; ++i) {
-        int j = subsample[i];
+        int j = r[i];
         int y = j % k;
         // j * (p + q * m) / N = j * p / N + j * q / k
         // sum_q e^{2pi I j * (p + q * m) / N} = sum_q e^{2pi I (j * p / N) + (j * q / k)}
@@ -126,14 +126,14 @@ void dft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *subsa
 
 /* 
 * @params N: array size
-* @params d: subsample size
+* @params d: r size
 * @params n_ranks: num_ranks
-* @params flip: vector of N random signs (-1 or +1)
+* @params f: vector of N random signs (-1 or +1)
 * @params perm: random permutation of [0, N)
-* @params input: array to be srft'd
-* @params subsample: d random elements from [0, N) (to be subsampled)
-* @params output_re: destination to store real part of result
-* @params output_im: destination to store imaginary part of result
+* @params a: array to be srft'd
+* @params r: d random elements from [0, N) (to be rd)
+* @params sa_re: destination to store real part of result
+* @params sa_im: destination to store imaginary part of result
 * @params transform: the transformation to be performed
 */
 
@@ -159,19 +159,19 @@ void dct(double *a, int N) {
     }
 }
 
-void dct_nlogd(double *a, int N, int k, int d, const int *subsample) {
+void dct_nlogd(double *a, int N, int k, int d, const int *r) {
     double *temp_re = new double[N], *temp_im = new double[N];
     for (int i = 0; i < N; ++i) temp_re[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = a[i], temp_im[i] = 0.;
-    dft_nlogd(temp_re, temp_im, N, k, d, subsample);
+    dft_nlogd(temp_re, temp_im, N, k, d, r);
     for (int i = 0; i < d; ++i) {
         double x = 2 * cos(PI * i / 2 / N), y = 2 * sin(PI * i / 2 / N);
         a[i] = x * temp_re[i] - y * temp_im[i];
     }
 }
 
-void srft(int N, int d, int n_ranks, const int *flip, const int *perm, const double *input, double *output_re, double *output_im, const int *subsample, Transform transform) {
+void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {
     double *temp_re = new double[N], temp_im = new double[N];
-    for (int i = 0; i < N; ++i) temp_re[i] = input[perm[i]] * flip[i], temp_im[i] = 0.;
+    for (int i = 0; i < N; ++i) temp_re[i] = a[perm[i]] * f[i], temp_im[i] = 0.;
     if (transform == Transform::walsh) {
         fwht(temp_re, N);
     } else if (transform == Transform::fourier) {
@@ -181,25 +181,25 @@ void srft(int N, int d, int n_ranks, const int *flip, const int *perm, const dou
         dct(temp_re, N);
     }
     double scale = sqrt(N / d);
-    for (int i = 0; i < d; ++i) output_re[i] = temp_re[subsample[i]] * scale, output_im[i] = temp_im[subsample[i]] * scale;
+    for (int i = 0; i < d; ++i) sa_re[i] = temp_re[r[i]] * scale, sa_im[i] = temp_im[r[i]] * scale;
 }
 
-void srft_nlogd(int N, int d, int n_ranks, const int *flip, const int *perm, const double *input, double *output_re, double *output_im, const int *subsample, Transform transform) {
+void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {
     double *temp_re = new double[N], temp_im = new double[N];
-    for (int i = 0; i < N; ++i) temp_re[i] = input[perm[i]] * flip[i], temp_im[i] = 0.;
+    for (int i = 0; i < N; ++i) temp_re[i] = a[perm[i]] * f[i], temp_im[i] = 0.;
     int k = 2;
     for (int i = 1; k < d * i; ++i) k *= 2;
     if (transform == Transform::walsh) {
-        fwt_nlogd(temp_re, temp_im, N, k, d, subsample);
+        fwt_nlogd(temp_re, temp_im, N, k, d, r);
     } else if (transform == Transform::fourier) {
-        dft_nlogd(temp_re, temp_im, N, k, d, subsample);
+        dft_nlogd(temp_re, temp_im, N, k, d, r);
     } else {
         assert(transform == Transform::cosine);
-        dct_nlogd(temp_re, temp_im, N, k, d, subsample);
+        dct_nlogd(temp_re, temp_im, N, k, d, r);
     }
     double scale = sqrt(N / d);
     for (int i = 0; i < d; ++i) {
-        output_re[i] = temp_re[i] * scale;
-        output_im[i] = temp_im[i] * scale;
+        sa_re[i] = temp_re[i] * scale;
+        sa_im[i] = temp_im[i] * scale;
     }
 }

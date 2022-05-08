@@ -20,7 +20,9 @@ enum class Transform {
 
 const double PI = acos(-1.0);
 
-void srft(int N, int d, int n_ranks, const int *flip, const int *perm, const double *input, double *output_re, double *output_im, const int *subsample, Transform transform);
-void srft_nlogd(int N, int d, int n_ranks, const int *flip, const int *perm, const double *input, double *output_re, double *output_im, const int *subsample, Transform transform);
+void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform);
+void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform);
+void srft(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform);
+void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform);
 
 #endif

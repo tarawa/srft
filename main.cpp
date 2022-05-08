@@ -136,6 +136,11 @@ int main(int argc, char** argv) {
 #pragma omp parallel default(shared)
 #endif
     {
+        if (!strcmp(ttype, "fwht") || !strcmp(ttype, "dft") || !strcmp(ttype, "dct")) {
+            init(N, d, n_ranks, f, perm, r, transform);
+        } else {
+            init_nlogd(N, d, n_ranks, f, perm, r, transform);
+        }
         for (int b = 0; b < B; ++b) {
             int cur_seed;
 #ifdef _OPENMP

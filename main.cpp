@@ -145,21 +145,19 @@ int main(int argc, char** argv) {
             int cur_seed;
             std::chrono::steady_clock::time_point rng_start_time, rng_end_time;
 #ifdef _OPENMP
-#pragma omp single
+#pragma omp barrier
+#pragma omp master
 #endif
             {
                 cur_seed = generate(seed + b);
-            }
-#ifdef _OPENMP
-#pragma omp single
-#endif
-            {
                 rng_start_time = std::chrono::steady_clock::now();
             }
+#ifdef _OPENMP
+#endif
             rand_double_array(a, n, N, cur_seed);
 #ifdef _OPENMP
 #pragma omp barrier
-#pragma omp single
+#pragma omp master
 #endif
             {
                 rng_end_time = std::chrono::steady_clock::now();
@@ -196,7 +194,6 @@ int main(int argc, char** argv) {
     auto end_time = std::chrono::steady_clock::now();
 
     std::chrono::duration<double> diff = end_time - start_time;
-    double seconds = diff.count();
 
     delete[] a;
     delete[] sa_re;
@@ -206,6 +203,6 @@ int main(int argc, char** argv) {
     delete[] f;
     // Finalize
     std::cout << std::fixed << "Simulation Time = " << (diff - rng_time).count() << " seconds for arr of size=" << n << "*" << B << " using transform " << ttype << " with seed=" << seed << " and d=" << d << " and #ranks=" << n_ranks << "." << std::endl;
-    std::cout << std::fixed << "Parallel RNG Time = " << rng_time << " seconds." << std::endl;
+    std::cout << std::fixed << "Parallel RNG Time = " << rng_time.count() << " seconds." << std::endl;
     // fsave.close();
 }

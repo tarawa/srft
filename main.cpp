@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
     int d = find_int_arg(argc, argv, "-d", 16);
     int B = find_int_arg(argc, argv, "-B", 1);
     int N = 1;
-    int n_ranks = omp_get_max_threads();
+    int n_ranks = 1;
     while (N < n) N *= 2;
     assert(d <= n);
     gen.seed(seed);
@@ -140,6 +140,12 @@ int main(int argc, char** argv) {
 #pragma omp parallel default(shared)
 #endif
     {
+#ifdef _OPENMP
+#pragma omp master
+        {
+            n_ranks = omp_get_num_threads();
+        }
+#endif
         for (int b = 0; b < B; ++b) {
             int cur_seed;
             std::chrono::steady_clock::time_point rng_start_time, rng_end_time;

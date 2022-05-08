@@ -1,14 +1,8 @@
 #include "common.h"
 
-// make sure compilation works, delete later
-void do_stuff(void) {
-    std::cout << "serial stuff\n";
-}
-
-void fwht(double* a, const int n) {
-    int h = 1;
-    while (h < n) {
-        for (int i = 0; i < n; i += h * 2) {
+void fwht(double* a, int N) {
+    for (int h = 1; h < N; h *= 2) {
+        for (int i = 0; i < N; i += h * 2) {
             for (int j = i; j < i + h; ++j) {
                 double x = a[j];
                 double y = a[j + h];
@@ -16,25 +10,61 @@ void fwht(double* a, const int n) {
                 a[j + h] = x - y;
             }
         }
-        h *= 2;
     }
 }
 
-void fwht_subsampled(double* v, int n, int d, int* perm, double* sa) {
-
+void fft(double* a_re, double *a_im, int N) {
+    double *w_re = new double[N + 1], *w_im = new double[N + 1];
+    for (int i = 0; i <= N; ++i) w_re[i] = cos(2. * PI * i / N), w_im[i] = sin(2. * PI * i / N);
+    for (int i = 0, j = 0; i < N; ++i) {
+        if (i < j) std::swap(a[i], a[j]);
+        for (int k = N >> 1; (j ^= k) < k;) k >>= 1;
+    }
+    for (int m = 2; m <= N; m *= 2) {
+        int gap = m / 2, step = N / m;
+        for (int i = 0; i < N; i += m) {
+            double *o_re = w_re, *o_im = w_im;
+            for (int j = i; j < i + gap; ++j, o_re += step, o_im += step) {
+                double u_re = a_re[j], u_im = a_im[j];
+                double v_re = *o_re * a_re[j + gap] - *o_im * a_im[j + gap];
+                double v_im = *o_re * a_im[j + gap] + *o_im * a_re[j + gap];
+                a_re[j] = u_re + v_re;
+                a_im[j] = u_im + v_im;
+                a_re[j + gap] = u_re - v_re;
+                a_im[j + gap] = u_im - v_im;
+            }
+        }
+    }
 }
 
 /* 
-* @params n: array size
-* @params d: sample size
-* @params r: d random indices
-* @params f: vector of n random signs (-1 or +1)
-* @params perm: permutation vector, to permute a
-* @params a: array to be srft'd
-* @params space: array pre-sampling
-* @params sa: destination to store result in
-* @params transform: the transformation function
+* @params N: array size
+* @params d: subsample size
+* @params n_ranks: num_ranks
+* @params flip: vector of N random signs (-1 or +1)
+* @params perm: random permutation of [0, N)
+* @params input: array to be srft'd
+* @params subsample: d random elements from [0, N) (to be subsampled)
+* @params output_re: destination to store real part of result
+* @params output_im: destination to store imaginary part of result
+* @params transform: the transformation to be performed
 */
+
+void srft(int N, int d, int n_ranks, const int *flip, const int *perm, const double *input, double *output_re, double *output_im, const int *subsample, Transform transform) {
+    double *temp_re = new double[N], temp_im = new double[N];
+    for (int i = 0; i < N; ++i) temp_re[i] = input[perm[i]] * flip[i], temp_im[i] = 0.;
+    if (transform == Transform::walsh) {
+        fwht(temp_re, N);
+    } else if (transform == Transform::fourier) {
+        fft(temp_re, temp_im, N);
+    }
+    for (int i = 0; i < d; ++i) output_re[i] = temp_re[subsample[i]], output_im[i] = temp_im[subsample[i]];
+}
+
+void srft_nlogd(int N, int d, int n_ranks, const int *flip, const int *perm, const double *input, double *output_re, double *output_im, const int *subsample, Transform transform) {
+}
+
+/*
 void srft(int n, int d, int* r, int* f, int* perm, double* a, double* space, double* sa, void (*transform) (double*, int)) {
     // apply perm and random signs
     if (a != space) {
@@ -112,28 +142,10 @@ double dft_single(double* a, int m, int d, double* w, int index) {
     return a[i2 * m + i1];
 }
 
-void dft(double* a, int N) {
-    double w[N];
-    fft(w, N);
-    for (int i = 0, j = 0; i < N; ++i) {
-        if (i < j) std::swap(a[i], a[j]);
-        for (int k = N >> 1; (j ^= k) < k;) k >>= 1;
-    }
-    for (int m = 2; m <= N; m *= 2) {
-        int gap = m / 2, step = N / m;
-        for (int i = 0; i < N; i += m) {
-            double *o = w;
-            for (int j = i; j < i + gap; ++j, o += step) {
-            double u = a[j], v = *o * a[j + gap];
-            a[j] = u + v;
-            a[j + gap] = u - v;
-            }
-        }
-    }
-}
 
 void idft(double* a, int N) {
     dft(a, N);
     std::reverse(a + 1, a + N);
     for (int i = 0; i < N; ++i) a[i] /= N;
 }
+ */

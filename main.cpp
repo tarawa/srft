@@ -1,12 +1,6 @@
 #include "common.h"
 #include <chrono>
-#include <cmath>
-#include <cstring>
 #include <fstream>
-#include <iostream>
-#include <random>
-#include <vector>
-#include <algorithm>
 #include <iomanip>
 
 // =================
@@ -14,30 +8,28 @@
 // =================
 
 // make random double array
+std::mt19937 gen;
 
-void rand_double_array(double* a, const int n, const int seed) {
-    static std::default_random_engine gen(seed);
-    static std::uniform_real_distribution<> dis(-1000.0, 1000.0);
-    for (int i = 0; i < n; ++i)
-        a[i] = dis(gen);
+void rand_double_array(double* a, const int n, const int N) {
+    std::fill(a, a + N, 0.0);
+    std::uniform_real_distribution<double> dist(-1.0, 1.0);
+    for (int i = 0; i < n; ++i) a[i] = dist(gen);
 }
 
-void rand_sign_array(int* f, const int n, const int seed) {
-    std::srand(seed);
-    for (int i = 0; i < n; ++i)
-        f[i] = 1 - (2 * (rand() % 2));
+void rand_sign_array(int* f, const int N) {
+    std::uniform_int_distribution<int> dist(0, 1);
+    for (int i = 0; i < N; ++i) f[i] = dist(gen) ? -1 : 1;
 }
 
-void rand_permutation(int* p, const int n, const int d, const int seed) {
-    std::srand(seed);
-    int perm_start[n];
-    for (int i = 0; i < n; ++i) {
-        perm_start[i] = i;
-    }
-    std::random_shuffle(perm_start, perm_start + n - 1);
-    for (int i = 0; i < d; ++i) {
-        p[i] = perm_start[i];
-    }
+void rand_permutation(int* p, const int N) {
+    for (int i = 0; i < N; ++i) p[i] = i;
+    std::shuffle(p, p + N, gen);
+}
+
+void rand_subsample(int* p, const int N, const int subsample) {
+    int q = new int [N];
+    rand_permutation(q, N);
+    std::copy(q, q + subsample, p);
 }
 
 // Command Line Option Processing
@@ -79,12 +71,13 @@ int main(int argc, char** argv) {
     if (find_arg_idx(argc, argv, "-h") >= 0) {
         std::cout << "Options:" << std::endl;
         std::cout << "-h: see this help" << std::endl;
-        std::cout << "-n <int>: log2 of array size" << std::endl;
+//std::cout << "-n <int>: log2 of array size" << std::endl;
+        std::cout << "-n <int>: array size" << std::endl;
         std::cout << "-o <filename>: set the output file name" << std::endl;
-        std::cout << "-s <int>: set particle initialization seed" << std::endl;
+        std::cout << "-s <int>: set random seed" << std::endl;
         std::cout << "-r <int>: rank" << std::endl;
-        std::cout << "-t <str>: the transform: one of {fwht, dft, idft}" << std::endl;
-        std::cout << "-d <str>: number of elements to sample. must be <= n" << std::endl;
+        std::cout << "-t <str>: the transform: one of {fwht, dft, dct}" << std::endl;
+        std::cout << "-d <str>: number of elements to sample. must be <= N" << std::endl;
         return 0;
     }
 
@@ -99,24 +92,25 @@ int main(int argc, char** argv) {
     }
     // Initialize
     // int num_parts = find_int_arg(argc, argv, "-n", 1000);
-    int s = find_int_arg(argc, argv, "-s", 0);
-    int rank = find_int_arg(argc, argv, "-r", 0);
+    int seed = find_int_arg(argc, argv, "-s", 0);
+    int n_ranks = find_int_arg(argc, argv, "-r", 0);
     int n = find_int_arg(argc, argv, "-n", 3);
     int d = find_int_arg(argc, argv, "-d", 2);
+    int N = 1;
+    while (N <= n) N *= 2;
     assert(d <= n);
+    gen.seed(seed);
     // if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt"))
-        n = 1 << n;
-        d = 1 << d;
+    //n = 1 << n;
+    //d = 1 << d;
     // Complex *arr = new Complex[n];
     // rand_complex_array(arr, n, part_seed);
 
-
-    double* a = new double[n]; rand_double_array(a, n, s);
-    double* space = new double[n];
-    double* sa = new double[d];
-    int* perm = new int[n]; rand_permutation(perm, n, n, s);
-    int* r = new int[d]; rand_permutation(r, n, d, s);
-    int* f = new int[n]; rand_sign_array(f, n, s);
+    double* input = new double[N]; rand_double_array(input, n, N);
+    double* output_re = new double[d], *output_im = new double[d];
+    int* perm = new int[N]; rand_permutation(perm, N);
+    int* subsample = new int[d]; rand_subsample(subsample, N, d);
+    int* flip = new int[N]; rand_sign_array(flip, N);
 
     // if (savename != nullptr && d < 33) {
     //     std::cout << "perm: ";
@@ -128,8 +122,6 @@ int main(int argc, char** argv) {
 
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
-
-//     init_simulation(parts, num_parts, size);
 
 // #ifdef _OPENMP
 // #pragma omp parallel default(shared)
@@ -148,26 +140,18 @@ int main(int argc, char** argv) {
 //         }
 //     }
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) {
-        // fwht(a, n);
-        srft(n, d, r, f, perm, a, space, sa, fwht);
+        srft(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::walsh);
     } else if (!strcmp(ttype, "dft") || !strcmp(ttype, "fft")) {
-        // dft(a, n);
-        srft(n, d, r, f, perm, a, space, sa, dft);
-    } else if (!strcmp(ttype, "idft") || !strcmp(ttype, "ifft")) {
-        // idft(a, n);
-        srft(n, d, r, f, perm, a, space, sa, idft);
+        srft(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::fourier);
     } else if (!strcmp(ttype, "dfts") || !strcmp(ttype, "ffts")) {
-        // fft(a, n);
-        srft_nlogd(n, d, r, f, perm, a, space, sa, dft_subsampled);
+        srft_nlogd(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::walsh);
     } else if (!strcmp(ttype, "fwhts") || !strcmp(ttype, "fwts")) {
-        // fft(a, n);
-        srft_nlogd(n, d, r, f, perm, a, space, sa, fwht_subsampled);
+        srft_nlogd(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::fourier);
     } else {
         std::cout << "Not a supported transform type!\n";
         // delete[] a;
         exit(-1);
     }
-    
 
     auto end_time = std::chrono::steady_clock::now();
 

@@ -143,22 +143,28 @@ int main(int argc, char** argv) {
     {
         for (int b = 0; b < B; ++b) {
             int cur_seed;
+            std::chrono::steady_clock::time_point rng_start_time, rng_end_time;
 #ifdef _OPENMP
-#pragma omp master
+#pragma omp single
 #endif
             {
                 cur_seed = generate(seed + b);
             }
 #ifdef _OPENMP
-#pragma omp barrier
+#pragma omp single
 #endif
-            auto rng_start_time = std::chrono::steady_clock::now();
+            {
+                rng_start_time = std::chrono::steady_clock::now();
+            }
             rand_double_array(a, n, N, cur_seed);
 #ifdef _OPENMP
 #pragma omp barrier
+#pragma omp single
 #endif
-            auto rng_end_time = std::chrono::steady_clock::now();
-            rng_time += std::chrono::duration<double>(rng_end_time - rng_start_time).count();
+            {
+                rng_end_time = std::chrono::steady_clock::now();
+                rng_time += std::chrono::duration<double>(rng_end_time - rng_start_time).count();
+            }
             if (!strcmp(ttype, "fwht") || !strcmp(ttype, "dft") || !strcmp(ttype, "dct")) {
                 srft(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
             } else {

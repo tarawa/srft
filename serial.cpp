@@ -163,14 +163,16 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
     dft_im = new double[N];
     dct_re = new double[N];
     dct_im = new double[N];
+    w_re = new double[N + 1];
+    w_im = new double[N + 1];
+    bit_rev = new int[N];
+    dct_x = new double[N + 1];
+    dct_y = new double[N + 1];
     if (transform == Transform::fourier || transform == Transform::cosine) {
-        w_re = new double[N + 1];
-        w_im = new double[N + 1];
-        bit_rev = new int[N];
         compute_w(w_re, w_im, N);
         compute_bit_rev(bit_rev, N);
-        dct_x = new double[N + 1];
-        dct_y = new double[N + 1];
+    }
+    if (transform == Transform::cosine) {
         for (int i = 0; i <= N; ++i) {
             dct_x[i] = 2 * cos(PI * i / 2 / N);
             dct_y[i] = 2 * sin(PI * i / 2 / N);
@@ -188,25 +190,28 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     dct_re = new double[N];
     dct_im = new double[N];
     fwht_re = new double[N];
+    w_re = new double[N + 1];
+    w_im = new double[N + 1];
+    bit_rev = new int[N];
+    kw_re = new double[k + 1];
+    kw_im = new double[k + 1];
+    kbit_rev = new int[k];
+    dct_x = new double[N + 1];
+    dct_y = new double[N + 1];
+    bit_cnt = new int[N];
     if (transform == Transform::fourier || transform == Transform::cosine) {
-        w_re = new double[N + 1];
-        w_im = new double[N + 1];
-        bit_rev = new int[N];
         compute_w(w_re, w_im, N);
         compute_bit_rev(bit_rev, N);
-        kw_re = new double[k + 1];
-        kw_im = new double[k + 1];
-        kbit_rev = new int[k];
         compute_w(kw_re, kw_im, k);
         compute_bit_rev(kbit_rev, k);
-        dct_x = new double[N + 1];
-        dct_y = new double[N + 1];
+    }
+    if (transform == Transform::cosine) {
         for (int i = 0; i <= N; ++i) {
             dct_x[i] = 2 * cos(PI * i / 2 / N);
             dct_y[i] = 2 * sin(PI * i / 2 / N);
         }
-    } else if (transform == Transform::walsh) {
-        bit_cnt = new int[N];
+    }
+    if (transform == Transform::walsh) {
         compute_bitcount(bit_cnt, N);
     }
 }

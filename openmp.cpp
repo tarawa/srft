@@ -55,11 +55,11 @@ void fwht_parallel(double* a, int N) {
     for (int h = 1; h < N; h *= 2) {
 #pragma omp for collapse(2)
         for (int i = 0; i < N; i += h * 2) {
-            for (int j = i; j < i + h; ++j) {
-                double x = a[j];
-                double y = a[j + h];
-                a[j] = x + y;
-                a[j + h] = x - y;
+            for (int j = 0; j < h; ++j) {
+                double x = a[i + j];
+                double y = a[i + j + h];
+                a[i + j] = x + y;
+                a[i + j + h] = x - y;
             }
         }
     }
@@ -128,14 +128,14 @@ void fft_parallel(double* a_re, double *a_im, int N, const double *w_re, const d
         int gap = m / 2, step = N / m;
 #pragma omp for collapse(2)
         for (int i = 0; i < N; i += m) {
-            for (int j = i; j < i + gap; ++j) {
-                double u_re = a_re[j], u_im = a_im[j];
-                double v_re = w_re[j * step] * a_re[j + gap] - w_im[j * step] * a_im[j + gap];
-                double v_im = w_re[j * step] * a_im[j + gap] + w_im[j * step] * a_re[j + gap];
-                a_re[j] = u_re + v_re;
-                a_im[j] = u_im + v_im;
-                a_re[j + gap] = u_re - v_re;
-                a_im[j + gap] = u_im - v_im;
+            for (int j = 0; j < gap; ++j) {
+                double u_re = a_re[i + j], u_im = a_im[j];
+                double v_re = w_re[j * step] * a_re[i + j + gap] - w_im[j * step] * a_im[i + j + gap];
+                double v_im = w_re[j * step] * a_im[i + j + gap] + w_im[j * step] * a_re[i + j + gap];
+                a_re[i + j] = u_re + v_re;
+                a_im[i + j] = u_im + v_im;
+                a_re[i + j + gap] = u_re - v_re;
+                a_im[i + j + gap] = u_im - v_im;
             }
         }
     }
@@ -151,23 +151,24 @@ void dft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *r) {
 #pragma omp for
         for (int i = 0; i < N; i += k) fft(dft_re + i, dft_im + i, k, kw_re, kw_im, kbit_rev);
     }
+#pragma omp for
+    for (int i = 0; i < d; ++i) a_re[i] = a_im[i] = 0;
 #pragma omp for collapse(2)
     for (int i = 0; i < d; ++i) {
-        int j = r[i];
-        int y = j % k;
-        // j * (p + q * m) / N = j * p / N + j * q / k
-        // sum_q e^{2pi I j * (p + q * m) / N} = sum_q e^{2pi I (j * p / N) + (j * q / k)}
-        // what we have: sum_q e^{2pi I y * q / k} for each y
-        double u_re = 0, u_im = 0;
         for (int p = 0; p < m; ++p) {
+            int j = r[i];
+            int y = j % k;
+            // j * (p + q * m) / N = j * p / N + j * q / k
+            // sum_q e^{2pi I j * (p + q * m) / N} = sum_q e^{2pi I (j * p / N) + (j * q / k)}
+            // what we have: sum_q e^{2pi I y * q / k} for each y
             int x = ((int64_t)j * p) % N;
             double v_re = dft_re[p * k + y], v_im = dft_im[p * k + y];
             double z_re = w_re[x], z_im = w_im[x];
-            u_re += v_re * z_re - v_im * z_im;
-            u_im += v_re * z_im + v_im * z_re;
+#pragma omp atomic
+            a_re[i] += v_re * z_re - v_im * z_im;
+#pragma omp atomic
+            a_im[i] += v_re * z_im + v_im * z_re;
         }
-        a_re[i] = u_re;
-        a_im[i] = u_im;
     }
 }
 

@@ -139,13 +139,17 @@ int main(int argc, char** argv) {
 //             }
 //         }
 //     }
-    if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt")) {
+    if (!strcmp(ttype, "fwht")) {
         srft(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::walsh);
-    } else if (!strcmp(ttype, "dft") || !strcmp(ttype, "fft")) {
+    } else if (!strcmp(ttype, "fft")) {
         srft(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::fourier);
-    } else if (!strcmp(ttype, "dfts") || !strcmp(ttype, "ffts")) {
+    } else if (!strcmp(ttype, "dct")) {
+        srft(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::cosine);
+    } else if (!strcmp(ttype, "ffts")) {
         srft_nlogd(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::walsh);
-    } else if (!strcmp(ttype, "fwhts") || !strcmp(ttype, "fwts")) {
+    } else if (!strcmp(ttype, "fwts")) {
+        srft_nlogd(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::fourier);
+    } else if (!strcmp(ttype, "dcts")) {
         srft_nlogd(N, d, n_ranks, flip, perm, input, output_re, output_im, subsample, Transform::fourier);
     } else {
         std::cout << "Not a supported transform type!\n";

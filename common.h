@@ -17,7 +17,6 @@ enum class Transform {
     cosine
 };
 
-// #define Complex std::complex<double>
 const double PI = acos(-1.0);
 
 void srft(int N, int d, int n_ranks, const int *flip, const int *perm, const double *input, double *output_re, double *output_im, const int *subsample, Transform transform);

@@ -13,14 +13,59 @@ void fwht(double* a, int N) {
     }
 }
 
+void compute_bitcount(int *bit_cnt, int N) {
+    for (int i = 0; i < N; ++i) {
+        int temp = (i & 0x55555555) + ((i >> 1) & 0x55555555);
+        temp = (temp & 0x33333333) + ((temp >> 2) & 0x33333333);
+        temp = (temp & 0x0F0F0F0F) + ((temp >> 4) & 0x0F0F0F0F);
+        temp = (temp & 0x00FF00FF) + ((temp >> 8) & 0x00FF00FF);
+        temp = (temp & 0x0000FFFF) + ((temp >> 16) & 0x0000FFFF);
+        bit_cnt[i] = temp;
+    }
+}
+
+void fwht_nlogd(double* a, int N, int k, int d, const int *subsample) {
+    int m = N / k;
+    double *temp = new double[N];
+    transpose(a, temp, N, k);
+    for (int i = 0; i < N; i += k) fwht(temp + i, k);
+    int *bit_cnt = new int[N];
+    compute_bitcount(bit_cnt, N);
+    for (int i = 0; i < d; ++i) {
+        int j = subsample[i], y = j / m;
+        // m is a power of 2
+        // <j, p | q * m> = <j, p> + <j, q * m> = <j, p> + <j / m, q>
+        // sum_q -1^{<j, p | q * m>} = sum_q -1^{<j, p>} -1^{<j / m, q>}
+        // what we have: sum_q -1^{y * q} for each y
+        double u = 0;
+        for (int p = 0; p < m; ++p) {
+            int x = (bit_cnt[j & p] ? -1 : 1);
+            double v = temp[p * k + y];
+            u += x * v;
+        }
+        a[i] = u;
+    }
+}
+
 void compute_w(double* w_re, double* w_im, int N) {
     for (int i = 0; i <= N; ++i) w_re[i] = cos(2. * PI * i / N), w_im[i] = sin(2. * PI * i / N);
 }
 
-void fft(double* a_re, double *a_im, int N, const double *w_re, const double *w_im) {
-    for (int i = 0, j = 0; i < N; ++i) {
-        if (i < j) std::swap(a[i], a[j]);
-        for (int k = N >> 1; (j ^= k) < k;) k >>= 1;
+void compute_bit_rev(int* bit_rev, int N) {
+    for (int i = 0; i < N; ++i) {
+        int j = 0;
+        for (int x = N, y = i; x; x >>= 1, y >>= 1) j = ((j << 1) | (y & 1));
+        bit_rev[i] = j;
+    }
+}
+
+void fft(double* a_re, double *a_im, int N, const double *w_re, const double *w_im, const int *bit_rev) {
+    for (int i = 0; i < N; ++i) {
+        int j = bit_rev[i];
+        if (i < j) {
+            std::swap(a_re[i], a_re[j]);
+            std::swap(a_im[i], a_im[j]);
+        }
     }
     for (int m = 2; m <= N; m *= 2) {
         int gap = m / 2, step = N / m;
@@ -46,13 +91,16 @@ void transpose(const double *input, double *output, int N, int k) {
             output[i * k + j] = input[j * m + i];
 }
 
-void fft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *subsample) {
+void dft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *subsample) {
     double *temp_re = new double[N], *temp_im = new double[N];
     int m = N / k;
-    double *w_re = new double[k + 1], *w_im = new double[k + 1];
     transpose(a_re, temp_re, N, k);
     transpose(a_im, temp_im, N, k);
-    for (int i = 0; i < N; i += k) fft(temp_re + i, temp_im + i, k, w_re, w_im);
+    double *w_re = new double[k + 1], *w_im = new double[k + 1];
+    int *bit_rev = new int[k];
+    compute_w(w_re, w_im, k);
+    compute_bit_rev(bit_rev, k);
+    for (int i = 0; i < N; i += k) fft(temp_re + i, temp_im + i, k, w_re, w_im, bit_rev);
     delete[] w_re;
     delete[] w_im;
     w_re = new double[N + 1], w_im = new double[N + 1];
@@ -62,7 +110,7 @@ void fft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *subsa
         int y = j % k;
         // j * (p + q * m) / N = j * p / N + j * q / k
         // sum_q e^{2pi I j * (p + q * m) / N} = sum_q e^{2pi I (j * p / N) + (j * q / k)}
-        // what we have: sum_q e^{2pi I x * q / k} for each x
+        // what we have: sum_q e^{2pi I y * q / k} for each y
         double u_re = 0, u_im = 0;
         for (int p = 0; p < m; ++p) {
             int x = ((int64_t)j * p) % N;
@@ -89,17 +137,51 @@ void fft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *subsa
 * @params transform: the transformation to be performed
 */
 
+void dft(double *a_re, double *a_im, int N) {
+    double *w_re = new double[N + 1], *w_im = new double[N + 1];
+    int *bit_rev = new int[N];
+    compute_w(w_re, w_im, N);
+    compute_bit_rev(bit_rev, N);
+    fft(temp_re, temp_im, N, w_re, w_im, bit_rev);
+}
+
+void dct(double *a, int N) {
+    double *temp_re = new double[N], *temp_im = new double[N];
+    for (int i = 0; i < N; ++i) temp_re[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = a[i], temp_im[i] = 0.;
+    double *w_re = new double[N + 1], *w_im = new double[N + 1];
+    int *bit_rev = new int[N];
+    compute_w(w_re, w_im, N);
+    compute_bit_rev(bit_rev, N);
+    fft(temp_re, temp_im, N, w_re, w_im, bit_rev);
+    for (int i = 0; i < N; ++i) {
+        double x = 2 * cos(PI * i / 2 / N), y = 2 * sin(PI * i / 2 / N);
+        a[i] = x * temp_re[i] - y * temp_im[i];
+    }
+}
+
+void dct_nlogd(double *a, int N, int k, int d, const int *subsample) {
+    double *temp_re = new double[N], *temp_im = new double[N];
+    for (int i = 0; i < N; ++i) temp_re[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = a[i], temp_im[i] = 0.;
+    dft_nlogd(temp_re, temp_im, N, k, d, subsample);
+    for (int i = 0; i < d; ++i) {
+        double x = 2 * cos(PI * i / 2 / N), y = 2 * sin(PI * i / 2 / N);
+        a[i] = x * temp_re[i] - y * temp_im[i];
+    }
+}
+
 void srft(int N, int d, int n_ranks, const int *flip, const int *perm, const double *input, double *output_re, double *output_im, const int *subsample, Transform transform) {
     double *temp_re = new double[N], temp_im = new double[N];
     for (int i = 0; i < N; ++i) temp_re[i] = input[perm[i]] * flip[i], temp_im[i] = 0.;
     if (transform == Transform::walsh) {
         fwht(temp_re, N);
     } else if (transform == Transform::fourier) {
-        double *w_re = new double[N + 1], *w_im = new double[N + 1];
-        compute_w(w_re, w_im, N);
-        fft(temp_re, temp_im, N, w_re, w_im);
+        dft(temp_re, temp_im, N)
+    } else {
+        assert(transform == Transform::cosine);
+        dct(temp_re, N);
     }
-    for (int i = 0; i < d; ++i) output_re[i] = temp_re[subsample[i]], output_im[i] = temp_im[subsample[i]];
+    double scale = sqrt(N / d);
+    for (int i = 0; i < d; ++i) output_re[i] = temp_re[subsample[i]] * scale, output_im[i] = temp_im[subsample[i]] * scale;
 }
 
 void srft_nlogd(int N, int d, int n_ranks, const int *flip, const int *perm, const double *input, double *output_re, double *output_im, const int *subsample, Transform transform) {
@@ -108,99 +190,16 @@ void srft_nlogd(int N, int d, int n_ranks, const int *flip, const int *perm, con
     int k = 2;
     for (int i = 1; k < d * i; ++i) k *= 2;
     if (transform == Transform::walsh) {
-    //    fwht(temp_re, N);
-    // TODO: FWT
+        fwt_nlogd(temp_re, temp_im, N, k, d, subsample);
     } else if (transform == Transform::fourier) {
-        fft_nlogd(temp_re, temp_im, N, k, d, subsample);
+        dft_nlogd(temp_re, temp_im, N, k, d, subsample);
+    } else {
+        assert(transform == Transform::cosine);
+        dct_nlogd(temp_re, temp_im, N, k, d, subsample);
     }
+    double scale = sqrt(N / d);
     for (int i = 0; i < d; ++i) {
-        output_re[i] = temp_re[i];
-        output_im[i] = temp_im[i];
+        output_re[i] = temp_re[i] * scale;
+        output_im[i] = temp_im[i] * scale;
     }
 }
-
-/*
-void srft(int n, int d, int* r, int* f, int* perm, double* a, double* space, double* sa, void (*transform) (double*, int)) {
-    // apply perm and random signs
-    if (a != space) {
-        // not in place
-        for (int i = 0; i < n; ++i) {
-            space[i] = a[perm[i]] * f[i];
-        }
-    }
-    // apply transform
-    transform(space, n);
-    // sample and multiply by sqrt(n/d)
-    double mult_fac = sqrt(static_cast<double>(d)/static_cast<double>(n));
-    for (int i = 0; i < d; ++i) {
-        sa[i] = mult_fac * space[r[i]];
-    }
-}
-
-void srft_nlogd(int n, int d, int* r, int* f, int* perm, double* a, double* space, double* sa, void (*transform) (double*, int, int, int*, double*)) {
-    if (a != space) {
-        // not in place
-        for (int i = 0; i < n; ++i) {
-            space[i] = a[perm[i]] * f[i];
-        }
-    }
-
-    transform(space, n, d, r, sa);
-
-    double mult_fac = sqrt(static_cast<double>(d)/static_cast<double>(n));
-    for (int i = 0; i < d; ++i) {
-        sa[i] *= mult_fac;
-    }
-}
-
-void fft(double* w, int N) {
-    for (int i = 0; i <= N; ++i) w[i] = cos(2. * PI * i / N);
-}
-
-static inline void transpose(double* a, int width, int height) {
-    for (int j = 0; j < height; ++j)
-        for (int i = 0; i < width; i++)
-            if (i < j)
-                std::swap(a[i], a[j]);
-}
-
-//nlogd
-//assumes n is divisible by d
-// https://edoliberty.github.io/papers/approximationOfMatrices.pdf
-void dft_subsampled(double* v, int n, int d, int* r, double* sa) {
-    // Viewing the vector v as an l×m matrix V stored in row-major order, form the product W of the l×l unnormalized discrete Fourier transform F(l) and V , so that...
-    int m = n/d;
-    for (int i = 0; i < m; ++i)
-        dft(v + (i * d), d);
-    // Multiply the entry in row j and column k of W by e−2πi(j−1)(k−1)/n for j = 1, 2,...,l−1,l and k = 1, 2,...,m−1,m, in order to obtain the l x m matrix X
-    for (int k = 0; k < m; ++k)
-        for (int j = 0; j < d; ++j)
-            v[k*d + j] *= cos(2. * PI * j * k/n);
-    // Transpose X to obtain an m × l matrix Y , so that...
-    transpose(v, d, m);
-    //  Form the product Z of the m × m unnormalized discrete Fourier transform F(m) and Y , so that
-    // If we only need to compute l entries of z = F(n)v, then we can use Steps 1–3 above in their entirety to obtain Y ,and then compute the desired entries of z directly from the entries of Y
-    double w[n];
-    fft(w, n);
-    for (int i = 0; i < d; ++i) {
-        int index = r[i];
-        sa[i] = dft_single(v, m, d, w, index);
-    }
-}
-
-double dft_single(double* a, int m, int d, double* w, int index) {
-    // TODO
-    int i1 = index % m;
-    int i2 = index / m;
-    // std::cout << "\nindex: " << index << "\nm: " << m << "\nd: " << d << "\n";
-    dft(a + i2 * m, m);
-    return a[i2 * m + i1];
-}
-
-
-void idft(double* a, int N) {
-    dft(a, N);
-    std::reverse(a + 1, a + N);
-    for (int i = 0; i < N; ++i) a[i] /= N;
-}
- */

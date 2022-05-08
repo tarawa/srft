@@ -177,6 +177,6 @@ int main(int argc, char** argv) {
     delete[] r;
     delete[] f;
     // Finalize
-    std::cout << std::fixed << "Simulation Time = " << seconds << " seconds for arr of size " << n << " using transform " << ttype << " with seed " << s << " and d " << d << " and #ranks " << n_ranks << ".\n";
+    std::cout << std::fixed << "Simulation Time = " << seconds << " seconds for arr of size " << n << " using transform " << ttype << " with seed " << seed << " and d " << d << " and #ranks " << n_ranks << ".\n";
     // fsave.close();
 }

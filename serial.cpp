@@ -159,20 +159,20 @@ void dct_nlogd(double *a, int N, int k, int d, const int *r) {
 void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform) {
     srft_re = new double[N];
     srft_im = new double[N];
-    dft_re = new double[N];
-    dft_im = new double[N];
-    dct_re = new double[N];
-    dct_im = new double[N];
-    w_re = new double[N + 1];
-    w_im = new double[N + 1];
-    bit_rev = new int[N];
-    dct_x = new double[N + 1];
-    dct_y = new double[N + 1];
     if (transform == Transform::fourier || transform == Transform::cosine) {
+        dft_re = new double[N];
+        dft_im = new double[N];
+        w_re = new double[N + 1];
+        w_im = new double[N + 1];
+        bit_rev = new int[N];
         compute_w(w_re, w_im, N);
         compute_bit_rev(bit_rev, N);
     }
     if (transform == Transform::cosine) {
+        dct_re = new double[N];
+        dct_im = new double[N];
+        dct_x = new double[N + 1];
+        dct_y = new double[N + 1];
         for (int i = 0; i <= N; ++i) {
             dct_x[i] = 2 * cos(PI * i / 2 / N);
             dct_y[i] = 2 * sin(PI * i / 2 / N);
@@ -183,35 +183,17 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
 void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform) {
     k = 2;
     for (int i = 1; k < d * i; ++i) k *= 2;
-    srft_re = new double[N];
-    srft_im = new double[N];
-    dft_re = new double[N];
-    dft_im = new double[N];
-    dct_re = new double[N];
-    dct_im = new double[N];
-    fwht_re = new double[N];
-    w_re = new double[N + 1];
-    w_im = new double[N + 1];
-    bit_rev = new int[N];
-    kw_re = new double[k + 1];
-    kw_im = new double[k + 1];
-    kbit_rev = new int[k];
-    dct_x = new double[N + 1];
-    dct_y = new double[N + 1];
-    bit_cnt = new int[N];
+    init(N, d, n_ranks, f, perm, r, transform);
     if (transform == Transform::fourier || transform == Transform::cosine) {
-        compute_w(w_re, w_im, N);
-        compute_bit_rev(bit_rev, N);
+        kw_re = new double[k + 1];
+        kw_im = new double[k + 1];
+        kbit_rev = new int[k];
         compute_w(kw_re, kw_im, k);
         compute_bit_rev(kbit_rev, k);
     }
-    if (transform == Transform::cosine) {
-        for (int i = 0; i <= N; ++i) {
-            dct_x[i] = 2 * cos(PI * i / 2 / N);
-            dct_y[i] = 2 * sin(PI * i / 2 / N);
-        }
-    }
     if (transform == Transform::walsh) {
+        fwht_re = new double[N];
+        bit_cnt = new int[N];
         compute_bitcount(bit_cnt, N);
     }
 }

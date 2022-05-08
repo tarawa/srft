@@ -3,6 +3,7 @@
 #define _COMMON_H
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <complex>
 #include <iostream>

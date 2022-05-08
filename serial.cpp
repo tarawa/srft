@@ -13,9 +13,11 @@ void fwht(double* a, int N) {
     }
 }
 
-void fft(double* a_re, double *a_im, int N) {
-    double *w_re = new double[N + 1], *w_im = new double[N + 1];
+void compute_w(double* w_re, double* w_im, int N) {
     for (int i = 0; i <= N; ++i) w_re[i] = cos(2. * PI * i / N), w_im[i] = sin(2. * PI * i / N);
+}
+
+void fft(double* a_re, double *a_im, int N, const double *w_re, const double *w_im) {
     for (int i = 0, j = 0; i < N; ++i) {
         if (i < j) std::swap(a[i], a[j]);
         for (int k = N >> 1; (j ^= k) < k;) k >>= 1;
@@ -23,7 +25,7 @@ void fft(double* a_re, double *a_im, int N) {
     for (int m = 2; m <= N; m *= 2) {
         int gap = m / 2, step = N / m;
         for (int i = 0; i < N; i += m) {
-            double *o_re = w_re, *o_im = w_im;
+            const double *o_re = w_re, *o_im = w_im;
             for (int j = i; j < i + gap; ++j, o_re += step, o_im += step) {
                 double u_re = a_re[j], u_im = a_im[j];
                 double v_re = *o_re * a_re[j + gap] - *o_im * a_im[j + gap];
@@ -34,6 +36,43 @@ void fft(double* a_re, double *a_im, int N) {
                 a_im[j + gap] = u_im - v_im;
             }
         }
+    }
+}
+
+void transpose(const double *input, double *output, int N, int k) {
+    int m = N / k;
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < k; ++j)
+            output[i * k + j] = input[j * m + i];
+}
+
+void fft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *subsample) {
+    double *temp_re = new double[N], *temp_im = new double[N];
+    int m = N / k;
+    double *w_re = new double[k + 1], *w_im = new double[k + 1];
+    transpose(a_re, temp_re, N, k);
+    transpose(a_im, temp_im, N, k);
+    for (int i = 0; i < N; i += k) fft(temp_re + i, temp_im + i, k, w_re, w_im);
+    delete[] w_re;
+    delete[] w_im;
+    w_re = new double[N + 1], w_im = new double[N + 1];
+    compute_w(w_re, w_im, N);
+    for (int i = 0; i < d; ++i) {
+        int j = subsample[i];
+        int y = j % k;
+        // j * (p + q * m) / N = j * p / N + j * q / k
+        // sum_q e^{2pi I j * (p + q * m) / N} = sum_q e^{2pi I (j * p / N) + (j * q / k)}
+        // what we have: sum_q e^{2pi I x * q / k} for each x
+        double u_re = 0, u_im = 0;
+        for (int p = 0; p < m; ++p) {
+            int x = ((int64_t)j * p) % N;
+            double v_re = temp_re[p * k + y], v_im = temp_im[p * k + y];
+            double z_re = w_re[x], z_im = w_im[x];
+            u_re += v_re * z_re - v_im * z_im;
+            u_im += v_re * z_im + v_im * z_re;
+        }
+        a_re[i] = u_re;
+        a_im[i] = u_im;
     }
 }
 
@@ -56,12 +95,28 @@ void srft(int N, int d, int n_ranks, const int *flip, const int *perm, const dou
     if (transform == Transform::walsh) {
         fwht(temp_re, N);
     } else if (transform == Transform::fourier) {
-        fft(temp_re, temp_im, N);
+        double *w_re = new double[N + 1], *w_im = new double[N + 1];
+        compute_w(w_re, w_im, N);
+        fft(temp_re, temp_im, N, w_re, w_im);
     }
     for (int i = 0; i < d; ++i) output_re[i] = temp_re[subsample[i]], output_im[i] = temp_im[subsample[i]];
 }
 
 void srft_nlogd(int N, int d, int n_ranks, const int *flip, const int *perm, const double *input, double *output_re, double *output_im, const int *subsample, Transform transform) {
+    double *temp_re = new double[N], temp_im = new double[N];
+    for (int i = 0; i < N; ++i) temp_re[i] = input[perm[i]] * flip[i], temp_im[i] = 0.;
+    int k = 2;
+    for (int i = 1; k < d * i; ++i) k *= 2;
+    if (transform == Transform::walsh) {
+    //    fwht(temp_re, N);
+    // TODO: FWT
+    } else if (transform == Transform::fourier) {
+        fft_nlogd(temp_re, temp_im, N, k, d, subsample);
+    }
+    for (int i = 0; i < d; ++i) {
+        output_re[i] = temp_re[i];
+        output_im[i] = temp_im[i];
+    }
 }
 
 /*

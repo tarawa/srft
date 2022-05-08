@@ -131,6 +131,7 @@ int main(int argc, char** argv) {
         std::cout << "Not a supported transform type!\n";
         return -1;
     }
+    double rng_time = 0.0;
 #ifdef _OPENMP
 #pragma omp parallel default(shared)
 #endif
@@ -139,14 +140,20 @@ int main(int argc, char** argv) {
             int cur_seed;
 #ifdef _OPENMP
 #pragma omp master
+#endif
             {
                 cur_seed = generate(seed + b);
             }
+#ifdef _OPENMP
+#pragma omp barrier
 #endif
+            auto rng_start_time = std::chrono::steady_clock::now();
             rand_double_array(a, n, N, cur_seed);
 #ifdef _OPENMP
 #pragma omp barrier
 #endif
+            auto rng_end_time = std::chrono::steady_clock::now();
+            rng_time += std::chrono::duration<double>(rng_end_time - rng_start_time).count();
             if (!strcmp(ttype, "fwht") || !strcmp(ttype, "dft") || !strcmp(ttype, "dct")) {
                 srft(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
             } else {
@@ -187,6 +194,7 @@ int main(int argc, char** argv) {
     delete[] r;
     delete[] f;
     // Finalize
-    std::cout << std::fixed << "Simulation Time = " << seconds << " seconds for arr of size " << n << " * " << B << " using transform " << ttype << " with seed " << seed << " and d " << d << " and #ranks " << n_ranks << ".\n";
+    std::cout << std::fixed << "Simulation Time = " << seconds - rng_time << " seconds for arr of size " << n << " * " << B << " using transform " << ttype << " with seed " << seed << " and d " << d << " and #ranks " << n_ranks << "." << std::endl;
+    std::cout << std::fixed << "Parallel RNG Time = " << rng_time << " seconds." << std::endl;
     // fsave.close();
 }

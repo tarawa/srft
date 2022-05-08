@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
 
     // Open sa File
     char* savename = find_string_option(argc, argv, "-o", nullptr);
-    // std::ofstream fsave(savename);
+    std::ofstream fsave(savename);
 
     char* ttype = find_string_option(argc, argv, "-t", nullptr);
     if (ttype == nullptr) {
@@ -160,6 +160,20 @@ int main(int argc, char** argv) {
         } else {
             srft_nlogd(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
         }
+        if (fsave.good()) {
+            fsave << b << "-th column (real part): ";
+            for (int i = 0; i < d; ++i) {
+                fsave << sa_re[i] << " ";
+            }
+            fsave << std::endl;
+            if (transform == Transform::fourier) {
+                fsave << b << "-th column (imaginary part): ";
+                for (int i = 0; i < d; ++i) {
+                    fsave << sa_im[i] << " ";
+                }
+                fsave << std::endl;
+            }
+        }
     }
 
 
@@ -167,15 +181,6 @@ int main(int argc, char** argv) {
 
     std::chrono::duration<double> diff = end_time - start_time;
     double seconds = diff.count();
-    
-    // change to sa to file if -o set
-    if (savename != nullptr) {
-        std::cout << "arr: ";
-        for (int i = 0; i < d; ++i) {
-            std::cout << sa_re[i] << " ";
-        }
-        std::cout << "\n";
-    }
 
     delete[] a;
     delete[] sa_re;

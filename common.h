@@ -8,9 +8,14 @@
 #include <cstring>
 #include <complex>
 #include <iostream>
+#include <iomanip>
 #include <algorithm>
 #include <random>
 #include <vector>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 enum class Transform {
     walsh,

@@ -26,7 +26,7 @@ void rand_double_array(double *a, const int n, const int N, int seed) {
 
 void rand_sign_array(int *f, const int N) {
     std::uniform_int_distribution<int> dist(0, 1);
-    for (int i = 0; i < N; ++i) f[i] = dist(gen) ? -1 : 1;
+    for (int i = 0; i < N; ++i) f[i] = (dist(gen) ? -1 : 1);
 }
 
 void rand_permutation(int *p, const int N) {
@@ -38,6 +38,7 @@ void rand_r(int *p, const int N, const int r) {
     int *q = new int[N];
     rand_permutation(q, N);
     std::copy(q, q + r, p);
+    delete[] q;
 }
 
 // Command Line Option Processing

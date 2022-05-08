@@ -83,9 +83,8 @@ int main(int argc, char** argv) {
         std::cout << "-n <int>: array size" << std::endl;
         std::cout << "-o <filename>: set the sa file name" << std::endl;
         std::cout << "-s <int>: set random seed" << std::endl;
-        std::cout << "-r <int>: rank" << std::endl;
         std::cout << "-t <str>: the transform: one of {fwht, dft, dct}" << std::endl;
-        std::cout << "-d <str>: number of elements to sample. must be <= N" << std::endl;
+        std::cout << "-d <str>: number of elements to sample. must be <= n" << std::endl;
         std::cout << "-B <str>: number of columns of A (default B=1)" << std::endl;
         return 0;
     }
@@ -102,11 +101,11 @@ int main(int argc, char** argv) {
     // Initialize
 
     int seed = find_int_arg(argc, argv, "-s", 0);
-    int n_ranks = find_int_arg(argc, argv, "-r", 0);
-    int n = find_int_arg(argc, argv, "-n", 3);
-    int d = find_int_arg(argc, argv, "-d", 2);
+    int n = find_int_arg(argc, argv, "-n", 1024);
+    int d = find_int_arg(argc, argv, "-d", 16);
     int B = find_int_arg(argc, argv, "-B", 1);
     int N = 1;
+    int n_ranks = omp_get_max_threads();
     while (N < n) N *= 2;
     assert(d <= n);
     gen.seed(seed);

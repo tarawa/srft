@@ -157,7 +157,13 @@ int main(int argc, char** argv) {
 #endif
     {
         for (int b = 0; b < B; ++b) {
-            rand_double_array(a, n, N);
+
+#ifdef _OPENMP
+#pragma omp master
+#endif
+            {
+                rand_double_array(a, n, N);
+            }
             if (!strcmp(ttype, "fwht") || !strcmp(ttype, "dft") || !strcmp(ttype, "dct")) {
                 srft(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
             } else {

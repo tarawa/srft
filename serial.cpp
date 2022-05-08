@@ -176,7 +176,7 @@ void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double
     if (transform == Transform::walsh) {
         fwht(temp_re, N);
     } else if (transform == Transform::fourier) {
-        dft(temp_re, temp_im, N)
+        dft(temp_re, temp_im, N);
     } else {
         assert(transform == Transform::cosine);
         dct(temp_re, N);
@@ -186,7 +186,7 @@ void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double
 }
 
 void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {
-    double *temp_re = new double[N], temp_im = new double[N];
+    double *temp_re = new double[N], *temp_im = new double[N];
     for (int i = 0; i < N; ++i) temp_re[i] = a[perm[i]] * f[i], temp_im[i] = 0.;
     int k = 2;
     for (int i = 1; k < d * i; ++i) k *= 2;

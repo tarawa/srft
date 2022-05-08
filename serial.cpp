@@ -1,15 +1,21 @@
 #include "common.h"
 
-void fwht(double* a, int N) {
-    for (int h = 1; h < N; h *= 2) {
-        for (int i = 0; i < N; i += h * 2) {
-            for (int j = i; j < i + h; ++j) {
-                double x = a[j];
-                double y = a[j + h];
-                a[j] = x + y;
-                a[j + h] = x - y;
-            }
-        }
+void transpose(const double *a, double *temp, int N, int k) {
+    int m = N / k;
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < k; ++j)
+            temp[i * k + j] = a[j * m + i];
+}
+
+void compute_w(double* w_re, double* w_im, int N) {
+    for (int i = 0; i <= N; ++i) w_re[i] = cos(2. * PI * i / N), w_im[i] = sin(2. * PI * i / N);
+}
+
+void compute_bit_rev(int* bit_rev, int N) {
+    for (int i = 0; i < N; ++i) {
+        int j = 0;
+        for (int x = N, y = i; x; x >>= 1, y >>= 1) j = ((j << 1) | (y & 1));
+        bit_rev[i] = j;
     }
 }
 
@@ -21,6 +27,19 @@ void compute_bitcount(int *bit_cnt, int N) {
         temp = (temp & 0x00FF00FF) + ((temp >> 8) & 0x00FF00FF);
         temp = (temp & 0x0000FFFF) + ((temp >> 16) & 0x0000FFFF);
         bit_cnt[i] = temp;
+    }
+}
+
+void fwht(double* a, int N) {
+    for (int h = 1; h < N; h *= 2) {
+        for (int i = 0; i < N; i += h * 2) {
+            for (int j = i; j < i + h; ++j) {
+                double x = a[j];
+                double y = a[j + h];
+                a[j] = x + y;
+                a[j + h] = x - y;
+            }
+        }
     }
 }
 
@@ -47,18 +66,6 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     }
 }
 
-void compute_w(double* w_re, double* w_im, int N) {
-    for (int i = 0; i <= N; ++i) w_re[i] = cos(2. * PI * i / N), w_im[i] = sin(2. * PI * i / N);
-}
-
-void compute_bit_rev(int* bit_rev, int N) {
-    for (int i = 0; i < N; ++i) {
-        int j = 0;
-        for (int x = N, y = i; x; x >>= 1, y >>= 1) j = ((j << 1) | (y & 1));
-        bit_rev[i] = j;
-    }
-}
-
 void fft(double* a_re, double *a_im, int N, const double *w_re, const double *w_im, const int *bit_rev) {
     for (int i = 0; i < N; ++i) {
         int j = bit_rev[i];
@@ -82,13 +89,6 @@ void fft(double* a_re, double *a_im, int N, const double *w_re, const double *w_
             }
         }
     }
-}
-
-void transpose(const double *a, double *sa, int N, int k) {
-    int m = N / k;
-    for (int i = 0; i < m; ++i)
-        for (int j = 0; j < k; ++j)
-            sa[i * k + j] = a[j * m + i];
 }
 
 void dft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *r) {
@@ -124,25 +124,13 @@ void dft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *r) {
     }
 }
 
-/* 
-* @params N: array size
-* @params d: r size
-* @params n_ranks: num_ranks
-* @params f: vector of N random signs (-1 or +1)
-* @params perm: random permutation of [0, N)
-* @params a: array to be srft'd
-* @params r: d random elements from [0, N) (to be rd)
-* @params sa_re: destination to store real part of result
-* @params sa_im: destination to store imaginary part of result
-* @params transform: the transformation to be performed
-*/
 
 void dft(double *a_re, double *a_im, int N) {
     double *w_re = new double[N + 1], *w_im = new double[N + 1];
     int *bit_rev = new int[N];
     compute_w(w_re, w_im, N);
     compute_bit_rev(bit_rev, N);
-    fft(temp_re, temp_im, N, w_re, w_im, bit_rev);
+    fft(a_re, a_im, N, w_re, w_im, bit_rev);
 }
 
 void dct(double *a, int N) {
@@ -169,8 +157,21 @@ void dct_nlogd(double *a, int N, int k, int d, const int *r) {
     }
 }
 
+/*
+* @params N: array size
+* @params d: r size
+* @params n_ranks: num_ranks
+* @params f: vector of N random signs (-1 or +1)
+* @params perm: random permutation of [0, N)
+* @params a: array to be srft'd
+* @params r: d random elements from [0, N) (to be rd)
+* @params sa_re: destination to store real part of result
+* @params sa_im: destination to store imaginary part of result
+* @params transform: the transformation to be performed
+*/
+
 void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {
-    double *temp_re = new double[N], temp_im = new double[N];
+    double *temp_re = new double[N], *temp_im = new double[N];
     for (int i = 0; i < N; ++i) temp_re[i] = a[perm[i]] * f[i], temp_im[i] = 0.;
     if (transform == Transform::walsh) {
         fwht(temp_re, N);
@@ -190,12 +191,12 @@ void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     int k = 2;
     for (int i = 1; k < d * i; ++i) k *= 2;
     if (transform == Transform::walsh) {
-        fwt_nlogd(temp_re, temp_im, N, k, d, r);
+        fwht_nlogd(temp_re, N, k, d, r);
     } else if (transform == Transform::fourier) {
         dft_nlogd(temp_re, temp_im, N, k, d, r);
     } else {
         assert(transform == Transform::cosine);
-        dct_nlogd(temp_re, temp_im, N, k, d, r);
+        dct_nlogd(temp_re, N, k, d, r);
     }
     double scale = sqrt(N / d);
     for (int i = 0; i < d; ++i) {

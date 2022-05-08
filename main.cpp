@@ -118,7 +118,6 @@ int main(int argc, char** argv) {
     int* f = new int[N]; rand_sign_array(f, N);
 
     // Algorithm
-    auto start_time = std::chrono::steady_clock::now();
 
     Transform transform;
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwhts")) {
@@ -132,6 +131,7 @@ int main(int argc, char** argv) {
         return -1;
     }
     double rng_time = 0.0;
+    auto start_time = std::chrono::steady_clock::now();
 #ifdef _OPENMP
 #pragma omp parallel default(shared)
 #endif

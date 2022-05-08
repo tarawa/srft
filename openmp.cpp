@@ -246,7 +246,7 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
 
 void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform) {
     k = 2;
-    for (int i = 1; k < d * i; ++i) k *= 2;
+    for (int i = 1; k < d * i && k < N; ++i) k *= 2;
     init(N, d, n_ranks, f, perm, r, transform);
     if (transform == Transform::fourier || transform == Transform::cosine) {
         kw_re = new double[k + 1];
@@ -260,7 +260,8 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
         bit_cnt = new int[N];
         compute_bitcount(bit_cnt, N);
     }
-    flag = (N < (double)k * k * (31 - __builtin_clz(k)));
+    //flag = (N < (double)k * k * (31 - __builtin_clz(k)));
+    flag = false;
 }
 
 void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {

@@ -10,10 +10,19 @@
 // make random double array
 std::mt19937 gen;
 
-void rand_double_array(double *a, const int n, const int N) {
-    std::fill(a, a + N, 0.0);
-    std::uniform_real_distribution<double> dist(-1.0, 1.0);
-    for (int i = 0; i < n; ++i) a[i] = dist(gen);
+int generate(int seed) {
+    return rand_r(&seed);
+}
+
+void rand_double_array(double *a, const int n, const int N, int seed) {
+#ifdef _OPENMP
+#pragma omp for
+#endif
+    for (int i = 0; i < n; ++i) a[i] = generate(seed + i) / (double)RAND_MAX;
+#ifdef _OPENMP
+#pragma omp for
+#endif
+    for (int i = n; i < N; ++i) a[i] = 0.0;
 }
 
 void rand_sign_array(int *f, const int N) {
@@ -127,13 +136,17 @@ int main(int argc, char** argv) {
 #endif
     {
         for (int b = 0; b < B; ++b) {
-
+            int cur_seed;
 #ifdef _OPENMP
 #pragma omp master
-#endif
             {
-                rand_double_array(a, n, N);
+                cur_seed = generate(seed + b);
             }
+#endif
+            rand_double_array(a, n, N, cur_seed);
+#ifdef _OPENMP
+#pragma omp barrier
+#endif
             if (!strcmp(ttype, "fwht") || !strcmp(ttype, "dft") || !strcmp(ttype, "dct")) {
                 srft(N, d, n_ranks, f, perm, a, sa_re, sa_im, r, transform);
             } else {

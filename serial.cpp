@@ -1,7 +1,7 @@
 #include "common.h"
 
 double *srft_re, *srft_im, *w_re, *w_im, *kw_re, *kw_im, *dft_re, *dft_im, *dct_re, *dct_im, *fwht_re;
-int *bit_cnt, *bit_rev, *kbit_rev;
+int *bit_cnt, *bit_rev, *kbit_rev, k;
 
 void transpose(const double *a, double *temp, int N, int k) {
     int m = N / k;
@@ -179,6 +179,8 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
 }
 
 void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform) {
+    k = 2;
+    for (int i = 1; k < d * i; ++i) k *= 2;
     srft_re = new double[N];
     srft_im = new double[N];
     dft_re = new double[N];
@@ -234,8 +236,6 @@ void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
         srft_re[i] = a[perm[i]] * f[i];
         srft_im[i] = 0.;
     }
-    int k = 2;
-    for (int i = 1; k < d * i; ++i) k *= 2;
     if (transform == Transform::walsh) {
         fwht_nlogd(srft_re, N, k, d, r);
     } else if (transform == Transform::fourier) {

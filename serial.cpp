@@ -17,7 +17,7 @@ void compute_w(double* w_re, double* w_im, int N) {
 void compute_bit_rev(int* bit_rev, int N) {
     for (int i = 0; i < N; ++i) {
         int j = 0;
-        for (int x = N, y = i; x; x >>= 1, y >>= 1) j = ((j << 1) | (y & 1));
+        for (int x = (N >> 1), y = i; x; x >>= 1, y >>= 1) j = ((j << 1) | (y & 1));
         bit_rev[i] = j;
     }
 }

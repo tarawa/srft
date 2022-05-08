@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
     int d = find_int_arg(argc, argv, "-d", 2);
     int B = find_int_arg(argc, argv, "-B", 1);
     int N = 1;
-    while (N <= n) N *= 2;
+    while (N < n) N *= 2;
     assert(d <= n);
     gen.seed(seed);
 

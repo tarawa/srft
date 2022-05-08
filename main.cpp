@@ -71,7 +71,6 @@ int main(int argc, char** argv) {
     if (find_arg_idx(argc, argv, "-h") >= 0) {
         std::cout << "Options:" << std::endl;
         std::cout << "-h: see this help" << std::endl;
-//std::cout << "-n <int>: log2 of array size" << std::endl;
         std::cout << "-n <int>: array size" << std::endl;
         std::cout << "-o <filename>: set the sa file name" << std::endl;
         std::cout << "-s <int>: set random seed" << std::endl;
@@ -82,7 +81,7 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    // Open sa File
+    // Open save file
     char* savename = find_string_option(argc, argv, "-o", nullptr);
     std::ofstream fsave(savename);
 
@@ -92,7 +91,7 @@ int main(int argc, char** argv) {
         exit(-1);
     }
     // Initialize
-    // int num_parts = find_int_arg(argc, argv, "-n", 1000);
+
     int seed = find_int_arg(argc, argv, "-s", 0);
     int n_ranks = find_int_arg(argc, argv, "-r", 0);
     int n = find_int_arg(argc, argv, "-n", 3);
@@ -102,11 +101,6 @@ int main(int argc, char** argv) {
     while (N <= n) N *= 2;
     assert(d <= n);
     gen.seed(seed);
-    // if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwt"))
-    //n = 1 << n;
-    //d = 1 << d;
-    // Complex *arr = new Complex[n];
-    // rand_complex_array(arr, n, part_seed);
 
     double* a = new double[N];
     double* sa_re = new double[d], *sa_im = new double[d];
@@ -114,33 +108,9 @@ int main(int argc, char** argv) {
     int* r = new int[d]; rand_r(r, N, d);
     int* f = new int[N]; rand_sign_array(f, N);
 
-    // if (savename != nullptr && d < 33) {
-    //     std::cout << "perm: ";
-    //     for (int i = 0; i < d; ++i) {
-    //         std::cout << perm[i] << " ";
-    //     }
-    //     std::cout << "\n";
-    // }
-
     // Algorithm
     auto start_time = std::chrono::steady_clock::now();
 
-// #ifdef _OPENMP
-// #pragma omp parallel default(shared)
-// #endif
-//     {
-//         for (int step = 0; step < nsteps; ++step) {
-//             simulate_one_step(parts, num_parts, size);
-
-//             // Save state if necessary
-// #ifdef _OPENMP
-// #pragma omp master
-// #endif
-//             if (fsave.good() && (step % savefreq) == 0) {
-//                 save(fsave, parts, num_parts, size);
-//             }
-//         }
-//     }
     Transform transform;
     if (!strcmp(ttype, "fwht") || !strcmp(ttype, "fwhts")) {
         transform = Transform::walsh;

@@ -3,8 +3,8 @@
 typedef std::complex<double> Complex;
 
 Complex *srft_c, *w_c, *kw_c, *dft_c, *dct_c, *fwht_c;
-int *bit_cnt, *bit_rev, *kbit_rev, k;
-double *srft_re;
+int *bit_cnt, *bit_rev, *kbit_rev, *b_re, *b_im, k;
+double *srft_re, *fwht_re;
 
 void transpose(const double *a, double *temp, int N, int k) {
     int m = N / k;
@@ -93,6 +93,8 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     int m = N / k;
     transpose(a, fwht_re, N, k);
     fwht_block(fwht_re, N, k);
+#pragma omp for
+    for (int i = 0; i < d; ++i) a[i] = 0;
 #pragma omp for collapse(2)
     for (int i = 0; i < d; ++i) {
         for (int p = 0; p < m; ++p) {
@@ -133,9 +135,12 @@ void fft_parallel(Complex *a_c, int N, const Complex *w_c, const int *bit_rev, i
 void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
     int m = N / k;
     transpose(a_c, dft_c, N, k);
-    fft_parallel(dft_c, N, kw_c, kbit_rev, k)
+    fft_parallel(dft_c, N, kw_c, kbit_rev, k);
 #pragma omp for
-    for (int i = 0; i < d; ++i) a_c[i] = 0;
+    for (int i = 0; i < d; ++i) {
+        b_re[i] = 0;
+        b_im[i] = 0;
+    }
 #pragma omp for collapse(2)
     for (int i = 0; i < d; ++i) {
         for (int p = 0; p < m; ++p) {
@@ -147,16 +152,21 @@ void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
             int x = ((int64_t)j * p) % N;
             Complex v = dft_c[p * k + y] * w[x];
 #pragma omp atomic
-            a_c[i] += v;
+            b_re[i] += v.x;
+#pragma omp atomic
+            b_im[i] += v.y;
         }
     }
+#pragma omp for
+    for (int i = 0; i < d; ++i)
+        a_c[i] = Complex(b_re[i], b_im[i]);
 }
 
 void dft(Complex *a_c, int N) {
     fft_parallel(a_c, N, w_c, bit_rev, N);
 }
 
-Complex *dct_c;
+Complex *dct_shift_c;
 
 void dct(double *a, int N) {
 #pragma omp for
@@ -229,6 +239,8 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     if (transform == Transform::walsh) {
         fwht_re = new double[N];
         bit_cnt = new int[N];
+        b_re = new double[N];
+        b_im = new double[N];
         compute_bitcount(bit_cnt, N);
     }
 }

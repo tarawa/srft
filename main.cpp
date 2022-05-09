@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
 #ifdef _OPENMP
 #pragma omp master
         {
-            n_ranks = omp_get_num_threads();
+            n_ranks = omp_get_max_threads();
         }
 #endif
         for (int b = 0; b < B; ++b) {

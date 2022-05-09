@@ -29,6 +29,7 @@ void compute_w(Complex *w_c, int N) {
 }
 
 void fft_parallel(Complex *a_c, int N, int k) {
+    fftw_plan_with_nthreads(omp_get_max_threads());
     for (int i = 0; i < N / k; ++i) {
         fftw_plan plan = fftw_plan_dft_1d(
                 k, reinterpret_cast<fftw_complex*>(a_c + i * k), reinterpret_cast<fftw_complex*>(b_c + i * k),
@@ -133,7 +134,6 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
         }
     }
     fftw_init_threads();
-    fftw_plan_with_nthreads(n_ranks);
 }
 
 void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform) {

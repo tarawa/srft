@@ -68,7 +68,7 @@ void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
         assert(false);
     }
     dft_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_c, dft_c, w_c, d, m, r_gpu, N, k);
-    thrust::device_ptr<Complex> d_c_ptr(d_c);
+    thrust::device_ptr<complex_t> d_c_ptr(d_c);
     thrust::inclusive_scan(d_c_ptr, d_c_ptr + d * m, d_c_ptr);
     dft_nlogd_store<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, d_c, d, m);
 }
@@ -181,6 +181,13 @@ __global__ void srft_save(double *sa_re_gpu, double *sa_im_gpu, double scale, Co
     if (i >= d) return;
     sa_re_gpu[i] = srft_c[r[i]].x;
     sa_im_gpu[i] = srft_c[r[i]].y;
+}
+
+__global__ void srft_save(double *sa_re_gpu, double *sa_im_gpu, double scale, Complex *srft_c, int d) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= d) return;
+    sa_re_gpu[i] = srft_c[i].x;
+    sa_im_gpu[i] = srft_c[i].y;
 }
 
 void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {

@@ -25,7 +25,7 @@ add_executable(gpu gpu.cu main.cpp common.h)
 add_executable(baseline-cufft baseline-cufft.cu main.cpp common.h)
 target_compile_features(gpu PRIVATE cxx_std_11)
 target_compile_features(baseline-cufft PRIVATE cxx_std_11)
-target_compile_options(baseline-cufft PRIVATE "-lcufft")
+target_link_libraries(baseline-cufft PRIVATE -lcufft)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_60")
 
 configure_file(job-benchmark job-benchmark COPYONLY)

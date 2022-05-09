@@ -1,7 +1,8 @@
 #include "common.h"
 #include <cuda.h>
 #include <thrust/complex.h>
-
+#include <thrust/functional.h>
+#include <thrust/transform.h>
 
 #define NUM_THREADS 256
 
@@ -9,7 +10,7 @@ typedef thrust::complex<double> Complex;
 
 Complex *srft_c, *w_c, *kw_c, *dft_c, *dct_c, *fwht_c, *a_c, *dct_shift_c, *b_c, *d_c;
 double *fwht_r, *a_gpu, *sa_re_gpu, *sa_im_gpu, *d_r;
-int *bit_cnt, *bit_rev, &kbit_rev, k;
+int *bit_cnt, *bit_rev, *kbit_rev, k;
 int *f_gpu, *perm_gpu, *r_gpu;
 
 bool flag;
@@ -106,7 +107,7 @@ __global__ void fwht_nlogd_store(double *res_r, double *d_r, int d, int m) {
 
 void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     int m = N / k;
-    transpose<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, fwht_r, N, k);
+    transpose<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, fwht_r, N, k, m);
     if (flag) {
         for (int i = 0; i < N; i += k) fwht_parallel(fwht_r + i, k);
     } else {
@@ -187,7 +188,7 @@ __global__ void dft_nlogd_store(Complex *res_c, Complex *d_c, int d, int m) {
 
 void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
     int m = N / k;
-    transpose<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, dft_c, N, k);
+    transpose<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, dft_c, N, k, m);
     if (flag) {
         for (int i = 0; i < N; i += k) fft_parallel(dft_c + i, k, kw_c, kbit_rev);
     } else {

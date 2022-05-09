@@ -1,8 +1,10 @@
 #include "common.h"
 
-double *srft_re, *srft_im, *w_re, *w_im, *kw_re, *kw_im, *dft_re, *dft_im, *dct_re, *dct_im, *fwht_re;
+typedef std::complex<double> Complex;
+
+Complex *srft_c, *w_c, *kw_c, *dft_c, *dct_c, *fwht_c;
 int *bit_cnt, *bit_rev, *kbit_rev, k;
-bool flag;
+double *srft_re;
 
 void transpose(const double *a, double *temp, int N, int k) {
     int m = N / k;
@@ -12,9 +14,17 @@ void transpose(const double *a, double *temp, int N, int k) {
             temp[i * k + j] = a[j * m + i];
 }
 
-void compute_w(double* w_re, double* w_im, int N) {
+void transpose(const Complex *a, Complex *temp, int N, int k) {
+    int m = N / k;
+#pragma omp for collapse(2)
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < k; ++j)
+            temp[i * k + j] = a[j * m + i];
+}
+
+void compute_w(Compelx *w_c, int N) {
 #pragma omp parallel for
-    for (int i = 0; i <= N; ++i) w_re[i] = cos(2. * PI * i / N), w_im[i] = sin(2. * PI * i / N);
+    for (int i = 0; i <= N; ++i) w_c[i] = Complex(cos(2. * PI * i / N), sin(2. * M_PI * i / N));
 }
 
 void compute_bit_rev(int* bit_rev, int N) {
@@ -65,15 +75,24 @@ void fwht_parallel(double* a, int N) {
     }
 }
 
+void fwht_block(double* a, int N, int k) {
+    for (int h = 1; h < k; h *= 2) {
+#pragma omp for collapse(2)
+        for (int i = 0; i < N; i += h * 2) {
+            for (int j = 0; j < h; ++j) {
+                double x = a[i + j];
+                double y = a[i + j + h];
+                a[i + j] = x + y;
+                a[i + j + h] = x - y;
+            }
+        }
+    }
+}
+
 void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     int m = N / k;
     transpose(a, fwht_re, N, k);
-    if (flag) {
-        for (int i = 0; i < N; i += k) fwht_parallel(fwht_re + i, k);
-    } else {
-#pragma omp for
-        for (int i = 0; i < N; i += k) fwht(fwht_re + i, k);
-    }
+    fwht_block(fwht_re, N, k);
 #pragma omp for collapse(2)
     for (int i = 0; i < d; ++i) {
         for (int p = 0; p < m; ++p) {
@@ -90,69 +109,33 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     }
 }
 
-void fft(double* a_re, double *a_im, int N, const double *w_re, const double *w_im, const int *bit_rev) {
-    for (int i = 0; i < N; ++i) {
-        int j = bit_rev[i];
-        if (i < j) {
-            std::swap(a_re[i], a_re[j]);
-            std::swap(a_im[i], a_im[j]);
-        }
-    }
-    for (int m = 2; m <= N; m *= 2) {
-        int gap = m / 2, step = N / m;
-        for (int i = 0; i < N; i += m) {
-            const double *o_re = w_re, *o_im = w_im;
-            for (int j = i; j < i + gap; ++j, o_re += step, o_im += step) {
-                double u_re = a_re[j], u_im = a_im[j];
-                double v_re = *o_re * a_re[j + gap] - *o_im * a_im[j + gap];
-                double v_im = *o_re * a_im[j + gap] + *o_im * a_re[j + gap];
-                a_re[j] = u_re + v_re;
-                a_im[j] = u_im + v_im;
-                a_re[j + gap] = u_re - v_re;
-                a_im[j + gap] = u_im - v_im;
-            }
-        }
-    }
-}
-
-void fft_parallel(double* a_re, double *a_im, int N, const double *w_re, const double *w_im, const int *bit_rev) {
+void fft_parallel(Complex *a_c, int N, const Complex *w_c, const int *bit_rev, int k) {
 #pragma omp for
     for (int i = 0; i < N; ++i) {
         int j = bit_rev[i];
         if (i < j) {
-            std::swap(a_re[i], a_re[j]);
-            std::swap(a_im[i], a_im[j]);
+            std::swap(a_c[i], a_c[j]);
         }
     }
-    for (int m = 2; m <= N; m *= 2) {
-        int gap = m / 2, step = N / m;
+    for (int m = 2; m <= k; m *= 2) {
+        int gap = m / 2, step = k / m;
 #pragma omp for collapse(2)
         for (int i = 0; i < N; i += m) {
             for (int j = 0; j < gap; ++j) {
-                double u_re = a_re[i + j], u_im = a_im[i + j];
-                double v_re = w_re[j * step] * a_re[i + j + gap] - w_im[j * step] * a_im[i + j + gap];
-                double v_im = w_re[j * step] * a_im[i + j + gap] + w_im[j * step] * a_re[i + j + gap];
-                a_re[i + j] = u_re + v_re;
-                a_im[i + j] = u_im + v_im;
-                a_re[i + j + gap] = u_re - v_re;
-                a_im[i + j + gap] = u_im - v_im;
+                Complex u = a_c[i + j], v = w_c[j * step] * a_c[i + j + gap];
+                a_c[i + j] = u + v;
+                a_c[i + j + gap] = u - v;
             }
         }
     }
 }
 
-void dft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *r) {
+void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
     int m = N / k;
-    transpose(a_re, dft_re, N, k);
-    transpose(a_im, dft_im, N, k);
-    if (flag) {
-        for (int i = 0; i < N; i += k) fft_parallel(dft_re + i, dft_im + i, k, kw_re, kw_im, kbit_rev);
-    } else {
+    transpose(a_c, dft_c, N, k);
+    fft_parallel(dft_c, N, kw_c, kbit_rev, k)
 #pragma omp for
-        for (int i = 0; i < N; i += k) fft(dft_re + i, dft_im + i, k, kw_re, kw_im, kbit_rev);
-    }
-#pragma omp for
-    for (int i = 0; i < d; ++i) a_re[i] = a_im[i] = 0;
+    for (int i = 0; i < d; ++i) a_c[i] = 0;
 #pragma omp for collapse(2)
     for (int i = 0; i < d; ++i) {
         for (int p = 0; p < m; ++p) {
@@ -162,32 +145,28 @@ void dft_nlogd(double* a_re, double *a_im, int N, int k, int d, const int *r) {
             // sum_q e^{2pi I j * (p + q * m) / N} = sum_q e^{2pi I (j * p / N) + (j * q / k)}
             // what we have: sum_q e^{2pi I y * q / k} for each y
             int x = ((int64_t)j * p) % N;
-            double v_re = dft_re[p * k + y], v_im = dft_im[p * k + y];
-            double z_re = w_re[x], z_im = w_im[x];
+            Complex v = dft_c[p * k + y] * w[x];
 #pragma omp atomic
-            a_re[i] += v_re * z_re - v_im * z_im;
-#pragma omp atomic
-            a_im[i] += v_re * z_im + v_im * z_re;
+            a_c[i] += v;
         }
     }
 }
 
-void dft(double *a_re, double *a_im, int N) {
-    fft_parallel(a_re, a_im, N, w_re, w_im, bit_rev);
+void dft(Complex *a_c, int N) {
+    fft_parallel(a_c, N, w_c, bit_rev, N);
 }
 
-double *dct_x, *dct_y;
+Complex *dct_c;
 
 void dct(double *a, int N) {
 #pragma omp for
     for (int i = 0; i < N; ++i) {
-        dct_re[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = a[i];
-        dct_im[i] = 0.;
+        dct_c[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = a[i];
     }
-    fft_parallel(dct_re, dct_im, N, w_re, w_im, bit_rev);
+    fft_parallel(dct_c, N, w_c, bit_rev, N);
 #pragma omp for
     for (int i = 0; i < N; ++i) {
-        a[i] = dct_x[i] * dct_re[i] - dct_y[i] * dct_im[i];
+        a[i] = (dct_c[i] * dct_shift_c[i]).real();
     }
 }
 
@@ -195,14 +174,13 @@ void dct(double *a, int N) {
 void dct_nlogd(double *a, int N, int k, int d, const int *r) {
 #pragma omp for
     for (int i = 0; i < N; ++i) {
-        dct_re[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = a[i];
-        dct_im[i] = 0.;
+        dct_c[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = a[i];
     }
-    dft_nlogd(dct_re, dct_im, N, k, d, r);
+    dft_nlogd(dct_c, N, k, d, r);
 #pragma omp for
     for (int i = 0; i < d; ++i) {
         int j = r[i];
-        a[i] = dct_x[j] * dct_re[i] - dct_y[j] * dct_im[i];
+        a[i] = (dct_shift[j] * dct_c[i]).real();
     }
 }
 
@@ -220,26 +198,20 @@ void dct_nlogd(double *a, int N, int k, int d, const int *r) {
 */
 
 void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform) {
-    srft_re = new double[N];
-    srft_im = new double[N];
+    srft_c = new Complex[N];
     if (transform == Transform::fourier || transform == Transform::cosine) {
-        dft_re = new double[N];
-        dft_im = new double[N];
-        w_re = new double[N + 1];
-        w_im = new double[N + 1];
+        dft_c = new Complex[N];
+        w_c = new Complex[N + 1];
         bit_rev = new int[N];
-        compute_w(w_re, w_im, N);
+        compute_w(w_c, N);
         compute_bit_rev(bit_rev, N);
     }
     if (transform == Transform::cosine) {
-        dct_re = new double[N];
-        dct_im = new double[N];
-        dct_x = new double[N + 1];
-        dct_y = new double[N + 1];
+        dct_c = new Complex[N];
+        dct_shift_c = new Complex[N + 1];
 #pragma omp parallel for
         for (int i = 0; i <= N; ++i) {
-            dct_x[i] = 2 * cos(PI * i / 2. / N);
-            dct_y[i] = 2 * sin(PI * i / 2. / N);
+            dct_x[i] = Complex(2 * cos(M_PI * i / 2. / N), 2 * sin(M_PI * i / 2. / N));
         }
     }
 }
@@ -249,10 +221,9 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     for (int i = 1; k < d * i && k < N; ++i) k *= 2;
     init(N, d, n_ranks, f, perm, r, transform);
     if (transform == Transform::fourier || transform == Transform::cosine) {
-        kw_re = new double[k + 1];
-        kw_im = new double[k + 1];
+        kw_c = new Complex[k + 1];
         kbit_rev = new int[k];
-        compute_w(kw_re, kw_im, k);
+        compute_w(kw_c, k);
         compute_bit_rev(kbit_rev, k);
     }
     if (transform == Transform::walsh) {
@@ -260,50 +231,76 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
         bit_cnt = new int[N];
         compute_bitcount(bit_cnt, N);
     }
-    //flag = (N < (double)k * k * (31 - __builtin_clz(k)));
-    flag = false;
 }
 
 void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {
+    if (transform == Transform::walsh || transform == Transform::cosine) {
 #pragma omp for
-    for (int i = 0; i < N; ++i) {
-        srft_re[i] = a[perm[i]] * f[i];
-        srft_im[i] = 0.;
+        for (int i = 0; i < N; ++i) {
+            srft_re[i] = a[perm[i]] * f[i];
+        }
+    } else {
+#pragma omp for
+        for (int i = 0; i < N; ++i) {
+            srft_c[i] = a[perm[i]] * f[i];
+        }
     }
     if (transform == Transform::walsh) {
         fwht_parallel(srft_re, N);
     } else if (transform == Transform::fourier) {
-        dft(srft_re, srft_im, N);
+        dft(srft_c, N);
     } else {
         assert(transform == Transform::cosine);
         dct(srft_re, N);
     }
     double scale = sqrt(N / d);
+    if (transform == Transform::walsh || transform == Transform::cosine) {
 #pragma omp for
-    for (int i = 0; i < d; ++i) {
-        sa_re[i] = srft_re[r[i]] * scale;
-        sa_im[i] = srft_im[r[i]] * scale;
+        for (int i = 0; i < d; ++i) {
+            sa_re[i] = srft_c[r[i]].real() * scale;
+            sa_im[i] = 0;
+        }
+    } else {
+#pragma omp for
+        for (int i = 0; i < d; ++i) {
+            sa_re[i] = srft_c[r[i]].real() * scale;
+            sa_im[i] = srft_c[r[i]].imag() * scale;
+        }
     }
 }
 
 void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {
+    if (transform == Transform::walsh || transform == Transform::cosine) {
 #pragma omp for
-    for (int i = 0; i < N; ++i) {
-        srft_re[i] = a[perm[i]] * f[i];
-        srft_im[i] = 0.;
+        for (int i = 0; i < N; ++i) {
+            srft_re[i] = a[perm[i]] * f[i];
+        }
+    } else {
+#pragma omp for
+        for (int i = 0; i < N; ++i) {
+            srft_c[i] = a[perm[i]] * f[i];
+        }
     }
     if (transform == Transform::walsh) {
         fwht_nlogd(srft_re, N, k, d, r);
     } else if (transform == Transform::fourier) {
-        dft_nlogd(srft_re, srft_im, N, k, d, r);
+        dft_nlogd(srft_c, N, k, d, r);
     } else {
         assert(transform == Transform::cosine);
         dct_nlogd(srft_re, N, k, d, r);
     }
     double scale = sqrt(N / d);
+    if (transform == Transform::walsh || transform == Transform::cosine) {
 #pragma omp for
-    for (int i = 0; i < d; ++i) {
-        sa_re[i] = srft_re[i] * scale;
-        sa_im[i] = srft_im[i] * scale;
+        for (int i = 0; i < d; ++i) {
+            sa_re[i] = srft_c[r[i]].real() * scale;
+            sa_im[i] = 0;
+        }
+    } else {
+#pragma omp for
+        for (int i = 0; i < d; ++i) {
+            sa_re[i] = srft_c[r[i]].real() * scale;
+            sa_im[i] = srft_c[r[i]].imag() * scale;
+        }
     }
 }

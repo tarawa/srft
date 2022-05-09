@@ -127,7 +127,7 @@ __device__ void fft(Complex *a_c, int N, const Complex *w_c, const int *bit_rev)
     for (int m = 2; m <= N; m *= 2) {
         int gap = m / 2, step = N / m;
         for (int i = 0; i < N; i += m) {
-            const Complex *o = w;
+            const Complex *o = w_c;
             for (int j = i; j < i + gap; ++j, o += step) {
                 Complex u = a_c[j], v = *o * a_c[j + gap];
                 a_c[j] = u + v;
@@ -137,17 +137,17 @@ __device__ void fft(Complex *a_c, int N, const Complex *w_c, const int *bit_rev)
     }
 }
 
-__global__ void fft_bit_rev(Complex *a_gpu, Complex *b_gpu, int N, int *bit_rev) {
+__global__ void fft_bit_rev(const Complex *a_gpu, Complex *b_gpu, int N, const int *bit_rev) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = bit_rev[i];
     b_gpu[j] = a_gpu[i];
 }
 
-__global__ void fft_butterfly(Complex *a_c, int gap, int step, Complex *w) {
+__global__ void fft_butterfly(Complex *a_c, int gap, int step, const Complex *w_c) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int p = (i / gap) * gap * 2, q = i % gap;
     int x = p + q, y = p + q + gap;
-    Complex u = a_c[x], v = w[q * step] * a_c[y];
+    Complex u = a_c[x], v = w_c[q * step] * a_c[y];
     a_c[x] = u + v;
     a_c[y] = u - v;
 }

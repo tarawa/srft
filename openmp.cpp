@@ -129,7 +129,7 @@ void fft_parallel(double* a_re, double *a_im, int N, const double *w_re, const d
 #pragma omp for collapse(2)
         for (int i = 0; i < N; i += m) {
             for (int j = 0; j < gap; ++j) {
-                double u_re = a_re[i + j], u_im = a_im[j];
+                double u_re = a_re[i + j], u_im = a_im[i + j];
                 double v_re = w_re[j * step] * a_re[i + j + gap] - w_im[j * step] * a_im[i + j + gap];
                 double v_im = w_re[j * step] * a_im[i + j + gap] + w_im[j * step] * a_re[i + j + gap];
                 a_re[i + j] = u_re + v_re;

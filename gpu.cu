@@ -10,7 +10,7 @@
 typedef thrust::complex<double> Complex;
 
 Complex *srft_c, *w_c, *kw_c, *dft_c, *dct_c, *fwht_c, *a_c, *dct_shift_c, *b_c, *d_c;
-double *fwht_r, *a_gpu, *sa_re_gpu, *sa_im_gpu, *d_r;
+double *fwht_r, *a_gpu, *sa_re_gpu, *sa_im_gpu, *d_r, *srft_r;
 int *bit_cnt, *bit_rev, *kbit_rev, k;
 int *f_gpu, *perm_gpu, *r_gpu;
 
@@ -119,7 +119,7 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     fwht_nlogd_store<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, d_r, d, m);
 }
 
-__device__ void fft(Complex *a_c, int N, const Complex *w_c, int *bit_rev) {
+__device__ void fft(Complex *a_c, int N, const Complex *w_c, const int *bit_rev) {
     for (int i = 0; i < N; ++i) {
         int j = bit_rev[i];
         if (i < j) std::swap(a_c[i], a_c[j]);
@@ -171,12 +171,12 @@ void fft_parallel(Complex *a_c, int N, const Complex *w_c, const int *bit_rev) {
     }
 }
 
-__global__ void dft_nlogd_compute(Complex *res_c, Complex *dft_c, Complex *w_c, int d, int m, const int *r) {
+__global__ void dft_nlogd_compute(Complex *res_c, Complex *dft_c, Complex *w_c, int d, int m, const int *r, int N, int k) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= d * m) return;
     int it = i / m, p = i % m;
     int j = r[it];
-    int x = ((int64_t)j * p) % N;
+    int x = ((int64_t)j * p) % N, y = j % k;
     Complex v = dft_c[p * k + y];
     res_c[i] = v * w_c[x];
 }
@@ -195,7 +195,7 @@ void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
     } else {
         fft_block<<<(N / k + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dft_c, N, kw_c, kbit_rev, k);
     }
-    dft_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>> dft_nlogd_compute(d_c, dft_c, w_c, d, m, r);
+    dft_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>> dft_nlogd_compute(d_c, dft_c, w_c, d, m, r, N, k);
     thrust::inclusive_scan(d_c, d_c + d * m, d_c);
     dft_nlogd_store<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, d_c, d, m);
 }
@@ -260,6 +260,9 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
     cudaMalloc((void**) &a_gpu, N * sizeof(double));
     cudaMalloc((void**) &sa_re_gpu, d * sizeof(double));
     cudaMalloc((void**) &sa_im_gpu, d * sizeof(double));
+    if (transform == Transform::walsh) {
+        cudaMalloc((void**) &srft_r, N * sizeof(double));
+    }
     if (transform == Transform::fourier || transform == Transform::cosine) {
         cudaMalloc((void**) &b_c, N * sizeof(Complex));
         cudaMalloc((void**) &dft_c, N * sizeof(Complex));
@@ -303,9 +306,9 @@ __global__ void shuffle(Complex *srft_c, double *a_gpu, int *perm_gpu, int *f_gp
     srft_c[i] = Complex(a_gpu[perm_gpu[i]] * f_gpu[i], 0);
 }
 
-__global__ void shuffle_real(double *srft_re, double *a_gpu, int *perm_gpu, int *f_gpu) {
+__global__ void shuffle_real(double *srft_r, double *a_gpu, int *perm_gpu, int *f_gpu) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    srft_re[i] = a_gpu[perm_gpu[i]] * f_gpu[i];
+    srft_r[i] = a_gpu[perm_gpu[i]] * f_gpu[i];
 }
 
 __global__ void srft_save(double *sa_re_gpu, double *sa_im_gpu, double scale, Complex *srft_c, int d, const int *r) {
@@ -322,20 +325,20 @@ __global__ void srft_save(double *sa_re_gpu, double *sa_im_gpu, double scale, Co
     sa_im_gpu[i] = srft_c[i].imag();
 }
 
-__global__ void srft_real_save(double *sa_re_gpu, double scale, double *srft_re, int d, const int *r) {
+__global__ void srft_real_save(double *sa_re_gpu, double scale, double *srft_r, int d, const int *r) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= d) return;
-    sa_re_gpu[i] = srft_re[r[i]];
+    sa_re_gpu[i] = srft_r[r[i]];
 }
 
 void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {
     cudaMemcpy(a_gpu, a, N * sizeof(double), cudaMemcpyHostToDevice);
     if (transform == Transform::walsh) {
-        shuffle_real<<<blks, NUM_THREADS>>>(srft_re, a_gpu, perm_gpu, f_gpu);
-        fwht_parallel(srft_re, N);
-        cudaMemcpy(sa_re, srft_re, d * sizeof(double), cudaMemcpyDeviceToHost);
+        shuffle_real<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_r, a_gpu, perm_gpu, f_gpu);
+        fwht_parallel(srft_r, N);
+        cudaMemcpy(sa_re, srft_r, d * sizeof(double), cudaMemcpyDeviceToHost);
     } else {
-        shuffle<<<blks, NUM_THREADS>>>(srft_c, a_gpu, perm_gpu, f_gpu);
+        shuffle<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_c, a_gpu, perm_gpu, f_gpu);
         double scale = sqrt((double)N / d);
         if (transform == Transform::fourier) {
             dft(srft_c, N);
@@ -353,9 +356,9 @@ void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double
 void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {
     cudaMemcpy(a_gpu, a, N * sizeof(double), cudaMemcpyHostToDevice);
     if (transform == Transform::walsh) {
-        shuffle_real<<<blks, NUM_THREADS>>>(srft_re, a_gpu, perm_gpu, f_gpu);
-        fwt_nlogd(srft_re, N);
-        cudaMemcpy(sa_re, srft_re, d * sizeof(double), cudaMemcpyDeviceToHost);
+        shuffle_real<<<blks, NUM_THREADS>>>(srft_r, a_gpu, perm_gpu, f_gpu);
+        fwt_nlogd(srft_r, N);
+        cudaMemcpy(sa_re, srft_r, d * sizeof(double), cudaMemcpyDeviceToHost);
     } else {
         shuffle<<<blks, NUM_THREADS>>>(srft_c, a_gpu, perm_gpu, f_gpu);
         if (transform == Transform::fourier) {

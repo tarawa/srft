@@ -47,7 +47,7 @@ void fft_parallel(Complex *a_c, int N, int k) {
         }
     }
 #pragma omp for
-    for (int j = 0; j < N; ++j) a_c[i] = b_c[i];
+    for (int j = 0; j < N; ++j) a_c[j] = b_c[j];
 }
 
 void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {

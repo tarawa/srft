@@ -167,8 +167,6 @@ void dft(Complex *a_c, int N) {
     fft_parallel(a_c, N, w_c, bit_rev, N);
 }
 
-Complex *dct_shift_c;
-
 void dct(double *a, int N) {
 #pragma omp for
     for (int i = 0; i < N; ++i) {
@@ -191,7 +189,7 @@ void dct_nlogd(double *a, int N, int k, int d, const int *r) {
 #pragma omp for
     for (int i = 0; i < d; ++i) {
         int j = r[i];
-        a[i] = (dct_shift[j] * dct_c[i]).real();
+        a[i] = (dct_shift_c[j] * dct_c[i]).real();
     }
 }
 

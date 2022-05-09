@@ -114,7 +114,7 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     } else {
         fwht_block<<<(N / k + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(fwht_r, N, k);
     }
-    fwht_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_r, fwht_r, d, m, r, k, bit_cnt);
+    fwht_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_r, fwht_r, d, m, r_gpu, k, bit_cnt);
     thrust::device_ptr<double> d_r_ptr(d_r);
     thrust::inclusive_scan(d_r_ptr, d_r_ptr + d * m, d_r_ptr);
     fwht_nlogd_store<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, d_r, d, m);
@@ -200,7 +200,7 @@ void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
     } else {
         fft_block<<<(N / k + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dft_c, N, kw_c, kbit_rev, k);
     }
-    dft_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_c, dft_c, w_c, d, m, r, N, k);
+    dft_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_c, dft_c, w_c, d, m, r_gpu, N, k);
     thrust::device_ptr<Complex> d_c_ptr(d_c);
     thrust::inclusive_scan(d_c_ptr, d_c_ptr + d * m, d_c_ptr);
     dft_nlogd_store<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, d_c, d, m);
@@ -238,7 +238,7 @@ __global__ void dct_nlogd_load(Complex *a_c, Complex *dct_c, Complex *dct_shift_
 void dct_nlogd(Complex *a, int N, int k, int d, const int *r) {
     dct_store<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dct_c, a_c, N);
     dft_nlogd(dct_c, N, k, d, r);
-    dct_nlogd_load<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, dct_c, dct_shift_c, d, r);
+    dct_nlogd_load<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, dct_c, dct_shift_c, d, r_gpu);
 }
 
 /*
@@ -261,7 +261,7 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
     cudaMalloc((void**) &r_gpu, d * sizeof(int));
     cudaMemcpy(f_gpu, f, N * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(perm_gpu, perm, N * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(r_gpu, r, N * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(r_gpu, r, d * sizeof(int), cudaMemcpyHostToDevice);
     cudaMalloc((void**) &a_gpu, N * sizeof(double));
     cudaMalloc((void**) &sa_re_gpu, d * sizeof(double));
     cudaMalloc((void**) &sa_im_gpu, d * sizeof(double));
@@ -353,7 +353,7 @@ void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double
             dct(srft_c, N);
         }
         double scale = sqrt((double)N / d);
-        srft_save<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(sa_re_gpu, sa_im_gpu, scale, srft_c, d, r);
+        srft_save<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(sa_re_gpu, sa_im_gpu, scale, srft_c, d, r_gpu);
         cudaMemcpy(sa_re, sa_re_gpu, d * sizeof(double), cudaMemcpyDeviceToHost);
         cudaMemcpy(sa_im, sa_im_gpu, d * sizeof(double), cudaMemcpyDeviceToHost);
     }

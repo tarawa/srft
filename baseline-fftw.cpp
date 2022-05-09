@@ -29,20 +29,17 @@ void compute_w(Complex *w_c, int N) {
 }
 
 void fft_parallel(Complex *a_c, int N, int k) {
-    fftw_plan_with_nthreads(omp_get_max_threads());
-    for (int i = 0; i < N; i += k) {
-        fftw_plan plan;
 #pragma omp single
-        {
+    {
+        fftw_plan_with_nthreads(omp_get_max_threads());
+        for (int i = 0; i < N; i += k) {
+            fftw_plan plan;
             plan = fftw_plan_dft_1d(
                     k, reinterpret_cast<fftw_complex *>(a_c + i), reinterpret_cast<fftw_complex *>(b_c + i),
                     FFTW_FORWARD,
                     FFTW_ESTIMATE
-            );
-        }
-        fftw_execute(plan);
-#pragma omp single
-        {
+                    );
+            fftw_execute(plan);
             fftw_destroy_plan(plan);
         }
     }

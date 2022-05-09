@@ -213,7 +213,6 @@ __global__ void dct_store(Complex *dct_c, double *a_re, int N) {
 __global__ void dct_load(double *a_re, Complex *dct_c, Complex *dct_shift_c, int N) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
-    int j = r[i];
     a_re[i] = (dct_c[i] * dct_shift_c[i]).real();
 }
 
@@ -231,9 +230,9 @@ __global__ void dct_nlogd_load(double *a_re, Complex *dct_c, Complex *dct_shift_
 }
 
 void dct_nlogd(double *a, int N, int k, int d, const int *r) {
-    dct_store<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dct_c, a_re, N);
+    dct_store<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dct_c, a, N);
     dft_nlogd(dct_c, N, k, d, r);
-    dct_nlogd_load<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_re, dct_c, dct_shift_c, d, r);
+    dct_nlogd_load<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, dct_c, dct_shift_c, d, r);
 }
 
 /*
@@ -288,8 +287,8 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
         cudaMalloc((void**) &kw_c, (k + 1) * sizeof(Complex));
         cudaMalloc((void**) &kbit_rev, k * sizeof(int));
         cudaMalloc((void**) &d_c, N * sizeof(Complex));
-        compute_w<<<k / NUM_THREADS + 1, NUM_THREADS>>>(kw_c, k);
-        compute_bit_rev(kbit_rev, k);
+        compute_w<<<(k + NUM_THREADS) / NUM_THREADS, NUM_THREADS>>>(kw_c, k);
+        compute_bit_rev<<<(k + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(kbit_rev, k);
     }
     if (transform == Transform::walsh) {
         cudaMalloc((void**) &bit_cnt, N * sizeof(int));
@@ -301,13 +300,15 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     flag = false;
 }
 
-__global__ void shuffle(Complex *srft_c, double *a_gpu, int *perm_gpu, int *f_gpu) {
+__global__ void shuffle(Complex *srft_c, double *a_gpu, int *perm_gpu, int *f_gpu, int N) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= N) return;
     srft_c[i] = Complex(a_gpu[perm_gpu[i]] * f_gpu[i], 0);
 }
 
-__global__ void shuffle_real(double *srft_r, double *a_gpu, int *perm_gpu, int *f_gpu) {
+__global__ void shuffle_real(double *srft_r, double *a_gpu, int *perm_gpu, int *f_gpu, int N) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= N) return;
     srft_r[i] = a_gpu[perm_gpu[i]] * f_gpu[i];
 }
 
@@ -355,11 +356,11 @@ void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double
 void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {
     cudaMemcpy(a_gpu, a, N * sizeof(double), cudaMemcpyHostToDevice);
     if (transform == Transform::walsh) {
-        shuffle_real<<<blks, NUM_THREADS>>>(srft_r, a_gpu, perm_gpu, f_gpu);
-        fwt_nlogd(srft_r, N);
+        shuffle_real<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_r, a_gpu, perm_gpu, f_gpu, N);
+        fwht_nlogd(srft_r, N);
         cudaMemcpy(sa_re, srft_r, d * sizeof(double), cudaMemcpyDeviceToHost);
     } else {
-        shuffle<<<blks, NUM_THREADS>>>(srft_c, a_gpu, perm_gpu, f_gpu);
+        shuffle<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_c, a_gpu, perm_gpu, f_gpu, N);
         if (transform == Transform::fourier) {
             dft(srft_c, N);
         } else {

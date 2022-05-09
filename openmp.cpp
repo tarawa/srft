@@ -150,7 +150,7 @@ void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
             // sum_q e^{2pi I j * (p + q * m) / N} = sum_q e^{2pi I (j * p / N) + (j * q / k)}
             // what we have: sum_q e^{2pi I y * q / k} for each y
             int x = ((int64_t)j * p) % N;
-            Complex v = dft_c[p * k + y] * w[x];
+            Complex v = dft_c[p * k + y] * w_c[x];
             double re = v.real(), im = v.imag();
 #pragma omp atomic
             b_re[i] += re;

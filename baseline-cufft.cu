@@ -9,12 +9,14 @@
 #define NUM_THREADS 256
 
 typedef cufftDoubleComplex Complex;
+typedef thrust::complex<double> complex_t;
 
-Complex *a_c, *dct_c, *srft_c, *dct_shift_c;
+Complex *a_c, *dct_c, *srft_c, *dct_shift_c, *w_c;
+complex_t *d_c;
 double *a_gpu, *sa_re_gpu, *sa_im_gpu;
 int k;
 int *f_gpu, *perm_gpu, *r_gpu;
-CufftHandle planN, planK;
+cufftHandle planN, planK;
 
 __global__ void transpose(const double *a, double *temp, int N, int k, int m) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -26,26 +28,38 @@ __global__ void transpose(const Complex *a, Complex *temp, int N, int k, int m) 
     if (i < N) temp[i] = a[(i % k) * m + (i / k)];
 }
 
+__global__ void compute_w(Complex* w_c, int N) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i <= N) {
+        w_c[i].x = cos(2 * M_PI * i / N);
+        w_c[i].y = sin(2 * M_PI * i / N);
+    }
+}
+
 __global__ void compute_dct_shift(Complex *dct_shift_c, int N) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
-    dct_shift_c[i] = Complex(2 * cos(M_PI * i / 2. / N), 2 * sin(M_PI * i / 2. / N));
+    dct_shift_c[i].x = 2 * cos(M_PI * i / 2. / N);
+    dct_shift_c[i].y = 2 * sin(M_PI * i / 2. / N);
 }
 
-__global__ void dft_nlogd_compute(Complex *res_c, Complex *dft_c, Complex *w_c, int d, int m, const int *r, int N, int k) {
+__global__ void dft_nlogd_compute(complex_t *res_c, Complex *dft_c, Complex *w_c, int d, int m, const int *r, int N, int k) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= d * m) return;
     int it = i / m, p = i % m;
     int j = r[it];
     int x = ((int64_t)j * p) % N, y = j % k;
     Complex v = dft_c[p * k + y];
-    res_c[i] = v * w_c[x];
+    res_c[i].x = v.x * w_c[x].x - v.y * w_c[x].y;
+    res_c[i].y = v.x * w_c[x].y + v.y * w_c[x].x;
 }
 
-__global__ void dft_nlogd_store(Complex *res_c, Complex *d_c, int d, int m) {
+__global__ void dft_nlogd_store(Complex *res_c, complex_t *d_c, int d, int m) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= d) return;
-    res_c[i] = d_c[i + m] - d_c[i];
+    complex_t temp = d_c[i + m] - d_c[i];
+    res_c[i].x = temp.real();
+    res_c[i].y = temp.imag();
 }
 
 void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
@@ -147,6 +161,10 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
         if (cufftPlan1d(&planK, k, CUFFT_C2C, N / k) != CUFFT_SUCCESS) {
             assert(false);
         }
+        cudaMalloc((void**) &d_c, N * sizeof(complex_t));
+        cudaMalloc((void**) &w_c, (N + 1) * sizeof(Complex));
+        compute_w<<<(N + NUM_THREADS) / NUM_THREADS, NUM_THREADS>>>(w_c, N);
+        cudaMemcpy(w_c + N, w_c, sizeof(Complex), cudaMemcpyDeviceToDevice);
     }
     if (transform == Transform::walsh) {
         assert(false);

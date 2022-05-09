@@ -2,9 +2,9 @@
 
 typedef std::complex<double> Complex;
 
-Complex *srft_c, *w_c, *kw_c, *dft_c, *dct_c, *fwht_c;
-int *bit_cnt, *bit_rev, *kbit_rev, *b_re, *b_im, k;
-double *srft_re, *fwht_re;
+Complex *srft_c, *w_c, *kw_c, *dft_c, *dct_c, *fwht_c, *dct_shift_c;
+int *bit_cnt, *bit_rev, *kbit_rev, k;
+double *srft_re, *fwht_re, *b_re, *b_im;
 
 void transpose(const double *a, double *temp, int N, int k) {
     int m = N / k;
@@ -151,10 +151,11 @@ void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
             // what we have: sum_q e^{2pi I y * q / k} for each y
             int x = ((int64_t)j * p) % N;
             Complex v = dft_c[p * k + y] * w[x];
+            double re = v.real(), im = v.imag();
 #pragma omp atomic
-            b_re[i] += v.x;
+            b_re[i] += re;
 #pragma omp atomic
-            b_im[i] += v.y;
+            b_im[i] += im;
         }
     }
 #pragma omp for
@@ -221,7 +222,7 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
         dct_shift_c = new Complex[N + 1];
 #pragma omp parallel for
         for (int i = 0; i <= N; ++i) {
-            dct_x[i] = Complex(2 * cos(M_PI * i / 2. / N), 2 * sin(M_PI * i / 2. / N));
+            dct_shift_c[i] = Complex(2 * cos(M_PI * i / 2. / N), 2 * sin(M_PI * i / 2. / N));
         }
     }
 }

@@ -204,35 +204,35 @@ void dft(Complex *srft_c, int N) {
     fft_parallel(srft_c, N, w_c, bit_rev);
 }
 
-__global__ void dct_store(Complex *dct_c, double *a_re, int N) {
+__global__ void dct_store(Complex *dct_c, Complex *a_c, int N) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
-    dct_c[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = Complex(a_re[i], 0);
+    dct_c[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = a_c[i];
 }
 
-__global__ void dct_load(double *a_re, Complex *dct_c, Complex *dct_shift_c, int N) {
+__global__ void dct_load(Complex *a_c, Complex *dct_c, Complex *dct_shift_c, int N) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
-    a_re[i] = (dct_c[i] * dct_shift_c[i]).real();
+    a_c[i] = (dct_c[i] * dct_shift_c[i]).real();
 }
 
-void dct(double *a_re, int N) {
-    dct_store<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dct_c, a_re, N);
+void dct(Complex *a_c, int N) {
+    dct_store<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dct_c, a_c, N);
     fft_parallel(dct_c, N, w_c, bit_rev);
-    dct_load<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_re, dct_c, dct_shift_c, N);
+    dct_load<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, dct_c, dct_shift_c, N);
 }
 
-__global__ void dct_nlogd_load(double *a_re, Complex *dct_c, Complex *dct_shift_c, int d, const int *r) {
+__global__ void dct_nlogd_load(Complex *a_c, Complex *dct_c, Complex *dct_shift_c, int d, const int *r) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= d) return;
     int j = r[i];
-    a_re[i] = (dct_c[i] * dct_shift_c[j]).real();
+    a_c[i] = (dct_c[i] * dct_shift_c[j]).real();
 }
 
-void dct_nlogd(double *a, int N, int k, int d, const int *r) {
-    dct_store<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dct_c, a, N);
+void dct_nlogd(Complex *a, int N, int k, int d, const int *r) {
+    dct_store<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dct_c, a_c, N);
     dft_nlogd(dct_c, N, k, d, r);
-    dct_nlogd_load<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, dct_c, dct_shift_c, d, r);
+    dct_nlogd_load<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, dct_c, dct_shift_c, d, r);
 }
 
 /*
@@ -335,11 +335,11 @@ __global__ void srft_real_save(double *sa_re_gpu, double scale, double *srft_r, 
 void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {
     cudaMemcpy(a_gpu, a, N * sizeof(double), cudaMemcpyHostToDevice);
     if (transform == Transform::walsh) {
-        shuffle_real<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_r, a_gpu, perm_gpu, f_gpu);
+        shuffle_real<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_r, a_gpu, perm_gpu, f_gpu, N);
         fwht_parallel(srft_r, N);
         cudaMemcpy(sa_re, srft_r, d * sizeof(double), cudaMemcpyDeviceToHost);
     } else {
-        shuffle<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_c, a_gpu, perm_gpu, f_gpu);
+        shuffle<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_c, a_gpu, perm_gpu, f_gpu, N);
         if (transform == Transform::fourier) {
             dft(srft_c, N);
         } else {

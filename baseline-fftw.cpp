@@ -23,6 +23,11 @@ void transpose(const Complex *a, Complex *temp, int N, int k) {
             temp[i * k + j] = a[j * m + i];
 }
 
+void compute_w(Complex *w_c, int N) {
+#pragma omp parallel for
+    for (int i = 0; i <= N; ++i) w_c[i] = Complex(cos(2. * PI * i / N), sin(2. * M_PI * i / N));
+}
+
 void fft_parallel(Complex *a_c, int N, int k) {
     for (int i = 0; i < N / k; ++i) {
         fftw_plan plan = fftw_plan_dft_1d(

@@ -1,0 +1,86 @@
+#!/bin/bash -x
+
+seed=2
+output=""
+numnodes=1
+reps=5
+
+parallel_type="serial"
+for rank in 0
+do
+    for type in "fwht" "dft" "dct" "fwhts" "dfts" "dcts"
+    do
+        for n in {20..30}
+        do
+            for subsampled in 16 $n
+            do
+                srun -N $numnodes ./${parallel_type} -n $((2**$n)) -B $reps -t $type -d $subsampled -s $seed -r $rank >> ${type}-${parallel_type}.out
+            done
+        done
+    done
+done
+
+export OMP_PLACES=cores
+export OMP_PROC_BIND=spread
+parallel_type="openmp"
+for rank in 1 2
+do
+    export OMP_NUM_THREADS=$rank
+    for type in "fwht" "dft" "dct" "fwhts" "dfts" "dcts"
+    do
+        for n in 25
+        do
+            for subsampled in 16 $n
+            do
+                srun -N $numnodes -c $rank ./${parallel_type} -n $((2**$n)) -B $reps -t $type -d $subsampled -s $seed -r $rank >> ${type}-${parallel_type}.out
+            done
+        done
+    done
+done
+
+for rank in {4..64..4}
+do
+    export OMP_NUM_THREADS=$rank
+    for type in "fwht" "dft" "dct" "fwhts" "dfts" "dcts"
+    do
+        for n in 25
+        do
+            for subsampled in 16 $n
+            do
+                srun -N $numnodes -c $rank ./${parallel_type} -n $((2**$n)) -B $reps -t $type -d $subsampled -s $seed -r $rank >> ${type}-${parallel_type}.out
+            done
+        done
+    done
+done
+
+for rank in 64
+do
+    export OMP_NUM_THREADS=$rank
+    for type in "fwht" "dft" "dct" "fwhts" "dfts" "dcts"
+    do
+        for n in {20..30}
+        do
+            for subsampled in 16 $n
+            do
+                srun -N $numnodes -c $rank ./${parallel_type} -n $((2**$n)) -B $reps -t $type -d $subsampled -s $seed -r $rank >> ${type}-${parallel_type}.out
+            done
+        done
+    done
+done
+
+# parallel_type="gpu"
+# # prob incorrect #, but a lot
+# rank=5000
+# for type in "fwht" "dft" "dct" "fwhts" "dfts" "dcts"
+# do
+#     for n in {20..30}
+#     do
+#         for subsampled in 16 $n
+#         do
+#             # salloc first
+#             ./${parallel_type} -n $((2**$n)) -B $reps -t $type -d $subsampled -s $seed -r $rank >> ${type}-${parallel_type}.out
+#         done
+#     done
+# done
+
+python3 ../scanfiles.py

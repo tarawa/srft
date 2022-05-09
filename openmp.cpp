@@ -22,7 +22,7 @@ void transpose(const Complex *a, Complex *temp, int N, int k) {
             temp[i * k + j] = a[j * m + i];
 }
 
-void compute_w(Compelx *w_c, int N) {
+void compute_w(Complex *w_c, int N) {
 #pragma omp parallel for
     for (int i = 0; i <= N; ++i) w_c[i] = Complex(cos(2. * PI * i / N), sin(2. * M_PI * i / N));
 }

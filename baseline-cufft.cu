@@ -64,7 +64,7 @@ __global__ void dft_nlogd_store(Complex *res_c, complex_t *d_c, int d, int m) {
 void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
     int m = N / k;
     transpose<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, dft_c, N, k, m);
-    if (cufftExecC2C(planK, dft_c, dft_c, CUFFT_FORWARD) != CUFFT_SUCCESS) {
+    if (cufftExecZ2Z(planK, dft_c, dft_c, CUFFT_FORWARD) != CUFFT_SUCCESS) {
         assert(false);
     }
     dft_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_c, dft_c, w_c, d, m, r_gpu, N, k);
@@ -74,7 +74,7 @@ void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
 }
 
 void dft(Complex *srft_c, int N) {
-    if (cufftExecC2C(planN, srft_c, srft_c, CUFFT_FORWARD) != CUFFT_SUCCESS) {
+    if (cufftExecZ2Z(planN, srft_c, srft_c, CUFFT_FORWARD) != CUFFT_SUCCESS) {
         assert(false);
     }
 }
@@ -139,7 +139,7 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
         assert(false);
     }
     if (transform == Transform::fourier || transform == Transform::cosine) {
-        if (cufftPlan1d(&planN, N, CUFFT_C2C, 1) != CUFFT_SUCCESS) {
+        if (cufftPlan1d(&planN, N, CUFFT_Z2Z, 1) != CUFFT_SUCCESS) {
             assert(false);
         }
         cudaMalloc((void**) &dft_c, N * sizeof(Complex));
@@ -156,7 +156,7 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     for (int i = 1; k < d * i && k < N; ++i) k *= 2;
     init(N, d, n_ranks, f, perm, r, transform);
     if (transform == Transform::fourier || transform == Transform::cosine) {
-        if (cufftPlan1d(&planK, k, CUFFT_C2C, N / k) != CUFFT_SUCCESS) {
+        if (cufftPlan1d(&planK, k, CUFFT_Z2Z, N / k) != CUFFT_SUCCESS) {
             assert(false);
         }
         cudaMalloc((void**) &d_c, N * sizeof(complex_t));

@@ -271,7 +271,7 @@ void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double
         srft_im[i] = 0.;
     }
     if (transform == Transform::walsh) {
-        fwht(srft_re, N);
+        fwht_parallel(srft_re, N);
     } else if (transform == Transform::fourier) {
         dft(srft_re, srft_im, N);
     } else {

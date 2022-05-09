@@ -26,7 +26,7 @@ void transpose(const Complex *a, Complex *temp, int N, int k) {
 void fft_parallel(Complex *a_c, int N, int k) {
     for (int i = 0; i < N / k; ++i) {
         fftw_plan plan = fftw_plan_dft_1d(
-                k, reinterpret_cast<fftw_complex*>(a_c), reinterpret_cast<fftw_complex*>(b_c),
+                k, reinterpret_cast<fftw_complex*>(a_c + i * k), reinterpret_cast<fftw_complex*>(b_c + i * k),
                 FFTW_FORWARD,
                 FFTW_ESTIMATE
         );
@@ -113,6 +113,7 @@ void dct_nlogd(double *a, int N, int k, int d, const int *r) {
 
 void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform) {
     srft_c = new Complex[N];
+    b_c = new Complex[N];
     if (transform == Transform::fourier || transform == Transform::cosine) {
         dft_c = new Complex[N];
     }

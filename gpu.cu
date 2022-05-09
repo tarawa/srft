@@ -357,7 +357,7 @@ void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     cudaMemcpy(a_gpu, a, N * sizeof(double), cudaMemcpyHostToDevice);
     if (transform == Transform::walsh) {
         shuffle_real<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_r, a_gpu, perm_gpu, f_gpu, N);
-        fwht_nlogd(srft_r, N);
+        fwht_nlogd(srft_r, N, k, d, r);
         cudaMemcpy(sa_re, srft_r, d * sizeof(double), cudaMemcpyDeviceToHost);
     } else {
         shuffle<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_c, a_gpu, perm_gpu, f_gpu, N);

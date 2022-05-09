@@ -11,7 +11,7 @@
 typedef cufftDoubleComplex Complex;
 typedef thrust::complex<double> complex_t;
 
-Complex *a_c, *dct_c, *srft_c, *dct_shift_c, *w_c;
+Complex *a_c, *dct_c, *srft_c, *dct_shift_c, *w_c, *dft_c;
 complex_t *d_c;
 double *a_gpu, *sa_re_gpu, *sa_im_gpu;
 int k;
@@ -50,8 +50,7 @@ __global__ void dft_nlogd_compute(complex_t *res_c, Complex *dft_c, Complex *w_c
     int j = r[it];
     int x = ((int64_t)j * p) % N, y = j % k;
     Complex v = dft_c[p * k + y];
-    res_c[i].x = v.x * w_c[x].x - v.y * w_c[x].y;
-    res_c[i].y = v.x * w_c[x].y + v.y * w_c[x].x;
+    res_c[i] = complex_t(v.x * w_c[x].x - v.y * w_c[x].y, v.x * w_c[x].y + v.y * w_c[x].x);
 }
 
 __global__ void dft_nlogd_store(Complex *res_c, complex_t *d_c, int d, int m) {
@@ -143,7 +142,6 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
         if (cufftPlan1d(&planN, N, CUFFT_C2C, 1) != CUFFT_SUCCESS) {
             assert(false);
         }
-        cudaMalloc((void**) &b_c, N * sizeof(Complex));
         cudaMalloc((void**) &dft_c, N * sizeof(Complex));
     }
     if (transform == Transform::cosine) {
@@ -181,8 +179,8 @@ __global__ void shuffle(Complex *srft_c, double *a_gpu, int *perm_gpu, int *f_gp
 __global__ void srft_save(double *sa_re_gpu, double *sa_im_gpu, double scale, Complex *srft_c, int d, const int *r) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= d) return;
-    sa_re_gpu[i] = srft_c[r[i]].real();
-    sa_im_gpu[i] = srft_c[r[i]].imag();
+    sa_re_gpu[i] = srft_c[r[i]].x;
+    sa_im_gpu[i] = srft_c[r[i]].y;
 }
 
 void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {

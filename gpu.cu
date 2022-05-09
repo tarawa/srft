@@ -53,7 +53,7 @@ __global__ void compute_bitcount(int *bit_cnt, int N) {
 __global__ void compute_dct_shift(Complex *dct_shift_c, int N) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
-    dct_shift_c[i] = Complex(2 * cos(PI * i / 2. / N), 2 * sin(PI * i / 2. / N));
+    dct_shift_c[i] = Complex(2 * cos(M_PI * i / 2. / N), 2 * sin(M_PI * i / 2. / N));
 }
 
 __global__ void fwht_butterfly(double *a_gpu, int N, int h) {
@@ -122,7 +122,11 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
 __device__ void fft(Complex *a_c, int N, const Complex *w_c, const int *bit_rev) {
     for (int i = 0; i < N; ++i) {
         int j = bit_rev[i];
-        if (i < j) std::swap(a_c[i], a_c[j]);
+        if (i < j) {
+            Complex temp = a_c[i];
+            a_c[i] = a_c[j];
+            a_c[j] = temp;
+        }
     }
     for (int m = 2; m <= N; m *= 2) {
         int gap = m / 2, step = N / m;

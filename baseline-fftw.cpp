@@ -133,6 +133,8 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     k = 2;
     for (int i = 1; k < d * i && k < N; ++i) k *= 2;
     init(N, d, n_ranks, f, perm, r, transform);
+    b_re = new double[N];
+    b_im = new double[N];
 }
 
 void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {

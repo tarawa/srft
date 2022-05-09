@@ -229,6 +229,8 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     k = 2;
     for (int i = 1; k < d * i && k < N; ++i) k *= 2;
     init(N, d, n_ranks, f, perm, r, transform);
+    b_re = new double[N];
+    b_im = new double[N];
     if (transform == Transform::fourier || transform == Transform::cosine) {
         kw_c = new Complex[k + 1];
         kbit_rev = new int[k];
@@ -238,8 +240,6 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     if (transform == Transform::walsh) {
         fwht_re = new double[N];
         bit_cnt = new int[N];
-        b_re = new double[N];
-        b_im = new double[N];
         compute_bitcount(bit_cnt, N);
     }
 }

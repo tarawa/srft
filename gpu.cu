@@ -90,7 +90,7 @@ __global__ void fwht_block(double *a, int N, int k) {
     fwht(a + i * k, k);
 }
 
-__global__ void fwht_nlogd_compute(double *d_r, double *fwht_r, int d, int m, const int *r) {
+__global__ void fwht_nlogd_compute(double *d_r, double *fwht_r, int d, int m, const int *r, int k, const int *bit_cnt) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= d * m) return;
     int it = i / m, p = i % m;
@@ -114,7 +114,7 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     } else {
         fwht_block<<<(N / k + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(fwht_r, N, k);
     }
-    fwht_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_r, d, m, r);
+    fwht_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_r, fwht_r, d, m, r, k, bit_cnt);
     thrust::inclusive_scan(d_r, d_r + d * m, d_r);
     fwht_nlogd_store<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, d_r, d, m);
 }

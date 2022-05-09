@@ -115,7 +115,8 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
         fwht_block<<<(N / k + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(fwht_r, N, k);
     }
     fwht_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_r, fwht_r, d, m, r, k, bit_cnt);
-    thrust::inclusive_scan(d_r, d_r + d * m, d_r);
+    thrust::device_ptr<double> d_r_ptr(d_r);
+    thrust::inclusive_scan(d_r_ptr, d_r_ptr + d * m, d_r_ptr);
     fwht_nlogd_store<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, d_r, d, m);
 }
 
@@ -200,7 +201,8 @@ void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
         fft_block<<<(N / k + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dft_c, N, kw_c, kbit_rev, k);
     }
     dft_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_c, dft_c, w_c, d, m, r, N, k);
-    thrust::inclusive_scan(d_c, d_c + d * m, d_c);
+    thrust::device_ptr<Complex> d_c_ptr(d_c);
+    thrust::inclusive_scan(d_c_ptr, d_c_ptr + d * m, d_c_ptr);
     dft_nlogd_store<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, d_c, d, m);
 }
 

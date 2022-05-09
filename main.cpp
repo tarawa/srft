@@ -207,7 +207,6 @@ int main(int argc, char** argv) {
     delete[] r;
     delete[] f;
     // Finalize
-    std::cout << std::fixed << "Simulation Time = " << (diff - rng_time).count() << " seconds for arr of size=" << n << "*" << B << " using transform " << ttype << " with seed=" << seed << " and d=" << d << " and #ranks=" << n_ranks << "." << std::endl;
-    std::cout << std::fixed << "Parallel RNG Time = " << rng_time.count() << " seconds." << std::endl;
+    std::cout << std::fixed << "Simulation Time = " << (diff - rng_time).count() << " seconds for arr of size=" << n << "*" << B << " using transform " << ttype << " with seed=" << seed << " and d=" << d << " and #ranks=" << n_ranks << ". Parallel RNG Time = " << rng_time.count() << " seconds." << std::endl;
     // fsave.close();
 }

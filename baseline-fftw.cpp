@@ -116,6 +116,8 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
     b_c = new Complex[N];
     if (transform == Transform::fourier || transform == Transform::cosine) {
         dft_c = new Complex[N];
+        w_c = new Complex[N + 1];
+        compute_w(w_c, N);
     }
     if (transform == Transform::cosine) {
         dct_c = new Complex[N];

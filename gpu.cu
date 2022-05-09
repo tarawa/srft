@@ -14,8 +14,6 @@ double *fwht_r, *a_gpu, *sa_re_gpu, *sa_im_gpu, *d_r, *srft_r;
 int *bit_cnt, *bit_rev, *kbit_rev, k;
 int *f_gpu, *perm_gpu, *r_gpu;
 
-bool flag;
-
 __global__ void transpose(const double *a, double *temp, int N, int k, int m) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N) temp[i] = a[(i % k) * m + (i / k)];
@@ -58,36 +56,22 @@ __global__ void compute_dct_shift(Complex *dct_shift_c, int N) {
 
 __global__ void fwht_butterfly(double *a_gpu, int N, int h) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= N / 2) return;
     int p = (i / h) * h * 2, q = i % h;
     double x = a_gpu[p + q], y = a_gpu[p + q + h];
     a_gpu[p + q] = x + y;
     a_gpu[p + q + h] = x - y;
 }
 
-__device__ void fwht(double* a, int N) {
-    for (int h = 1; h < N; h *= 2) {
-        for (int i = 0; i < N; i += h * 2) {
-            for (int j = 0; j < h; ++j) {
-                double x = a[i + j];
-                double y = a[i + j + h];
-                a[i + j] = x + y;
-                a[i + j + h] = x - y;
-            }
-        }
-    }
-}
-
 void fwht_parallel(double* a, int N) {
     for (int h = 1; h < N; h *= 2) {
-        fwht_butterfly<<<(N / 2 + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, N, h);
+        fwht_butterfly<<<(N / 2) / NUM_THREADS, NUM_THREADS>>>(a, N, h);
     }
 }
 
-__global__ void fwht_block(double *a, int N, int k) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i * k >= N) return;
-    fwht(a + i * k, k);
+void fwht_block(double *a, int N, int k) {
+    for (int h = 1; h < k; h *= 2) {
+        fwht_butterfly<<<(N / 2) / NUM_THREADS, NUM_THREADS>>>(a, N, h);
+    }
 }
 
 __global__ void fwht_nlogd_compute(double *d_r, double *fwht_r, int d, int m, const int *r, int k, const int *bit_cnt) {
@@ -109,42 +93,23 @@ __global__ void fwht_nlogd_store(double *res_r, double *d_r, int d, int m) {
 void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
     int m = N / k;
     transpose<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, fwht_r, N, k, m);
-    if (flag) {
-        for (int i = 0; i < N; i += k) fwht_parallel(fwht_r + i, k);
-    } else {
-        fwht_block<<<(N / k + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(fwht_r, N, k);
-    }
+    fwht_block(fwht_r, N, k);
     fwht_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_r, fwht_r, d, m, r_gpu, k, bit_cnt);
     thrust::device_ptr<double> d_r_ptr(d_r);
     thrust::inclusive_scan(d_r_ptr, d_r_ptr + d * m, d_r_ptr);
     fwht_nlogd_store<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a, d_r, d, m);
 }
 
-__device__ void fft(Complex *a_c, int N, const Complex *w_c, const int *bit_rev) {
-    for (int i = 0; i < N; ++i) {
-        int j = bit_rev[i];
-        if (i < j) {
-            Complex temp = a_c[i];
-            a_c[i] = a_c[j];
-            a_c[j] = temp;
-        }
-    }
-    for (int m = 2; m <= N; m *= 2) {
-        int gap = m / 2, step = N / m;
-        for (int i = 0; i < N; i += m) {
-            const Complex *o = w_c;
-            for (int j = i; j < i + gap; ++j, o += step) {
-                Complex u = a_c[j], v = *o * a_c[j + gap];
-                a_c[j] = u + v;
-                a_c[j + gap] = u - v;
-            }
-        }
-    }
-}
-
 __global__ void fft_bit_rev(const Complex *a_gpu, Complex *b_gpu, int N, const int *bit_rev) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = bit_rev[i];
+    b_gpu[j] = a_gpu[i];
+}
+
+__global__ void fft_kbit_rev(const Complex *a_gpu, Complex *b_gpu, int N, int k, const int *kbit_rev) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int t = (i & (k - 1));
+    int j = i - t + kbit_rev[t];
     b_gpu[j] = a_gpu[i];
 }
 
@@ -157,15 +122,10 @@ __global__ void fft_butterfly(Complex *a_c, int gap, int step, const Complex *w_
     a_c[y] = u - v;
 }
 
-__global__ void fft_block(Complex *a_c, int N, const Complex *w_c, const int *bit_rev, int k) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i * k >= N) return;
-    fft(a_c + i * k, k, w_c, bit_rev);
-}
-
 void fft_parallel(Complex *a_c, int N, const Complex *w_c, const int *bit_rev) {
     if (N <= 2 * NUM_THREADS) {
-        fft_block<<<1, 1>>>(a_c, N, w_c, bit_rev, N);
+        //fft_block<<<1, 1>>>(a_c, N, w_c, bit_rev, N);
+        assert(false);
         return;
     }
     fft_bit_rev<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, b_c, N, bit_rev);
@@ -173,6 +133,15 @@ void fft_parallel(Complex *a_c, int N, const Complex *w_c, const int *bit_rev) {
     for (int m = 2; m <= N; m *= 2) {
         int gap = m / 2, step = N / m;
         fft_butterfly<<<(N / NUM_THREADS) / 2, NUM_THREADS>>>(a_c, gap, step, w_c);
+    }
+}
+
+void fft_block(Complex *a_c, int N, int k, const Complex *kw_c, const int *kbit_rev) {
+    fft_kbit_rev<<<N / NUM_THREADS, NUM_THREADS>>>(a_c, b_c, N, k, kbit_rev);
+    cudaMemcpy(a_c, b_c, N * sizeof(Complex), cudaMemcpyDeviceToDevice);
+    for (int m = 2; m <= k; m *= 2) {
+        int gap = m / 2, step = k / m;
+        fft_butterfly<<<(N / NUM_THREADS) / 2, NUM_THREADS>>>(a_c, gap, step, kw_c);
     }
 }
 
@@ -195,11 +164,7 @@ __global__ void dft_nlogd_store(Complex *res_c, Complex *d_c, int d, int m) {
 void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
     int m = N / k;
     transpose<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, dft_c, N, k, m);
-    if (flag) {
-        for (int i = 0; i < N; i += k) fft_parallel(dft_c + i, k, kw_c, kbit_rev);
-    } else {
-        fft_block<<<(N / k + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(dft_c, N, kw_c, kbit_rev, k);
-    }
+    fft_block(dft_c, N, k, kw_c, kbit_rev);
     dft_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_c, dft_c, w_c, d, m, r_gpu, N, k);
     thrust::device_ptr<Complex> d_c_ptr(d_c);
     thrust::inclusive_scan(d_c_ptr, d_c_ptr + d * m, d_c_ptr);
@@ -302,8 +267,6 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
         cudaMalloc((void**) &d_r, N * sizeof(double));
         compute_bitcount<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(bit_cnt, N);
     }
-    //flag = (N < (double)k * k * (31 - __builtin_clz(k)));
-    flag = false;
 }
 
 __global__ void shuffle(Complex *srft_c, double *a_gpu, int *perm_gpu, int *f_gpu, int N) {

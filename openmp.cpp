@@ -114,7 +114,8 @@ void fwht_nlogd(double* a, int N, int k, int d, const int *r) {
 void fft_parallel(Complex *a_c, int N, const Complex *w_c, const int *bit_rev, int k) {
 #pragma omp for
     for (int i = 0; i < N; ++i) {
-        int j = bit_rev[i];
+        int t = (i & (k - 1));
+        int j = i - t + kbit_rev[t];
         if (i < j) {
             std::swap(a_c[i], a_c[j]);
         }

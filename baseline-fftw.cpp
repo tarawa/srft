@@ -26,7 +26,7 @@ void transpose(const Complex *a, Complex *temp, int N, int k) {
 void fft_parallel(Complex *a_c, int N, int k) {
     for (int i = 0; i < N / k; ++i) {
         fftw_plan plan = fftw_plan_dft_1d(
-                n, reinterpret_cast<fftw_complex*>(a_c), reinterpret_cast<fftw_complex*>(b_c),
+                k, reinterpret_cast<fftw_complex*>(a_c), reinterpret_cast<fftw_complex*>(b_c),
                 FFTW_FORWARD,
                 FFTW_ESTIMATE
         );
@@ -40,7 +40,7 @@ void fft_parallel(Complex *a_c, int N, int k) {
 void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
     int m = N / k;
     transpose(a_c, dft_c, N, k);
-    fft_parallel(dft_c, N, kw_c, kbit_rev, k);
+    fft_parallel(dft_c, N, k);
 #pragma omp for
     for (int i = 0; i < d; ++i) {
         b_re[i] = 0;
@@ -69,7 +69,7 @@ void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
 }
 
 void dft(Complex *a_c, int N) {
-    fft_parallel(a_c, N, w_c, bit_rev, N);
+    fft_parallel(a_c, N, N);
 }
 
 void dct(double *a, int N) {
@@ -77,7 +77,7 @@ void dct(double *a, int N) {
     for (int i = 0; i < N; ++i) {
         dct_c[(i & 1) ? N - 1 - (i >> 1) : (i >> 1)] = a[i];
     }
-    fft_parallel(dct_c, N, w_c, bit_rev, N);
+    fft_parallel(dct_c, N, N);
 #pragma omp for
     for (int i = 0; i < N; ++i) {
         a[i] = (dct_c[i] * dct_shift_c[i]).real();
@@ -115,10 +115,6 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
     srft_c = new Complex[N];
     if (transform == Transform::fourier || transform == Transform::cosine) {
         dft_c = new Complex[N];
-        w_c = new Complex[N + 1];
-        bit_rev = new int[N];
-        compute_w(w_c, N);
-        compute_bit_rev(bit_rev, N);
     }
     if (transform == Transform::cosine) {
         dct_c = new Complex[N];
@@ -136,19 +132,6 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     k = 2;
     for (int i = 1; k < d * i && k < N; ++i) k *= 2;
     init(N, d, n_ranks, f, perm, r, transform);
-    if (transform == Transform::fourier || transform == Transform::cosine) {
-        kw_c = new Complex[k + 1];
-        kbit_rev = new int[k];
-        compute_w(kw_c, k);
-        compute_bit_rev(kbit_rev, k);
-    }
-    if (transform == Transform::walsh) {
-        fwht_re = new double[N];
-        bit_cnt = new int[N];
-        b_re = new double[N];
-        b_im = new double[N];
-        compute_bitcount(bit_cnt, N);
-    }
 }
 
 void srft(int N, int d, int n_ranks, const int *f, const int *perm, const double *a, double *sa_re, double *sa_im, const int *r, Transform transform) {

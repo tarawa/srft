@@ -19,7 +19,7 @@ add_executable(serial main.cpp serial.cpp common.h)
 add_executable(openmp main.cpp openmp.cpp common.h)
 add_executable(baseline-fftw main.cpp baseline-fftw.cpp common.h)
 target_link_libraries(openmp PRIVATE OpenMP::OpenMP_CXX)
-target_link_libraries(baseline-fftw PRIVATE OpenMP::OpenMP_CXX fftw3)
+target_link_libraries(baseline-fftw PRIVATE OpenMP::OpenMP_CXX fftw3 fftw3_omp)
 
 # so that main is compiled as if it were .cu
 set_source_files_properties( main.cpp PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ )
@@ -27,7 +27,7 @@ add_executable(gpu gpu.cu main.cpp common.h)
 add_executable(baseline-cufft baseline-cufft.cu main.cpp common.h)
 target_compile_features(gpu PRIVATE cxx_std_11)
 target_compile_features(baseline-cufft PRIVATE cxx_std_11)
-target_link_libraries(baseline-cufft PRIVATE -lcufft)
+target_link_libraries(baseline-cufft PRIVATE cufft)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_60")
 
 configure_file(job-benchmark job-benchmark COPYONLY)

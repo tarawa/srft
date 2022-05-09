@@ -17,7 +17,9 @@ endif ()
 add_executable(serial main.cpp serial.cpp common.h)
 
 add_executable(openmp main.cpp openmp.cpp common.h)
+add_executable(baseline-fftw main.cpp baseline-fftw.cpp common.h)
 target_link_libraries(openmp PRIVATE OpenMP::OpenMP_CXX)
+target_link_libraries(baseline-fftw PRIVATE OpenMP::OpenMP_CXX fftw3)
 
 # so that main is compiled as if it were .cu
 set_source_files_properties( main.cpp PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ )

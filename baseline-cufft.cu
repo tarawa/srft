@@ -69,7 +69,7 @@ void dft_nlogd(Complex* a_c, int N, int k, int d, const int *r) {
     }
     dft_nlogd_compute<<<(d * m + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(d_c, dft_c, w_c, d, m, r_gpu, N, k);
     thrust::device_ptr<complex_t> d_c_ptr(d_c);
-    thrust::inclusive_scan(d_c_ptr, d_c_ptr + d * m, d_c_ptr);
+    thrust::inclusive_scan(d_c_ptr, d_c_ptr + (int64_t)d * m, d_c_ptr);
     dft_nlogd_store<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(a_c, d_c, d, m);
 }
 
@@ -135,6 +135,7 @@ void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r
     cudaMalloc((void**) &a_gpu, N * sizeof(double));
     cudaMalloc((void**) &sa_re_gpu, d * sizeof(double));
     cudaMalloc((void**) &sa_im_gpu, d * sizeof(double));
+    cudaMalloc((void**) &srft_c, N * sizeof(Complex));
     if (transform == Transform::walsh) {
         assert(false);
     }

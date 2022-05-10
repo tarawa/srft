@@ -115,7 +115,7 @@ void fft_parallel(Complex *a_c, int N, const Complex *w_c, const int *bit_rev, i
 #pragma omp for
     for (int i = 0; i < N; ++i) {
         int t = (i & (k - 1));
-        int j = i - t + kbit_rev[t];
+        int j = i - t + bit_rev[t];
         if (i < j) {
             std::swap(a_c[i], a_c[j]);
         }

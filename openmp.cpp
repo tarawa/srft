@@ -209,6 +209,9 @@ void dct_nlogd(double *a, int N, int k, int d, const int *r) {
 
 void init(int N, int d, int n_ranks, const int *f, const int *perm, const int *r, Transform transform) {
     srft_c = new Complex[N];
+    if (transform == Transform::cosine || transform == Transform::walsh) {
+        srft_re = new double[N];
+    }
     if (transform == Transform::fourier || transform == Transform::cosine) {
         dft_c = new Complex[N];
         w_c = new Complex[N + 1];

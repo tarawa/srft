@@ -216,10 +216,10 @@ void srft_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     } else {
         shuffle<<<(N + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(srft_c, a_gpu, perm_gpu, f_gpu, N);
         if (transform == Transform::fourier) {
-            dft(srft_c, N);
+            dft_nlogd(srft_c, N, k, d, r);
         } else {
             assert(transform == Transform::cosine);
-            dct(srft_c, N);
+            dct_nlogd(srft_c, N, k, d, r);
         }
         double scale = sqrt((double)N / d);
         srft_save<<<(d + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(sa_re_gpu, sa_im_gpu, scale, srft_c, d);

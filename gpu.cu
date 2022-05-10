@@ -257,7 +257,7 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
     if (transform == Transform::fourier || transform == Transform::cosine) {
         cudaMalloc((void**) &kw_c, (k + 1) * sizeof(Complex));
         cudaMalloc((void**) &kbit_rev, k * sizeof(int));
-        cudaMalloc((void**) &d_c, N * sizeof(Complex));
+        cudaMalloc((void**) &d_c, ((int64_t)d * (N / k)) * sizeof(Complex));
         compute_w<<<(k + NUM_THREADS) / NUM_THREADS, NUM_THREADS>>>(kw_c, k);
         compute_bit_rev<<<(k + NUM_THREADS - 1) / NUM_THREADS, NUM_THREADS>>>(kbit_rev, k);
     }

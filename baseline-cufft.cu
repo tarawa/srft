@@ -159,7 +159,7 @@ void init_nlogd(int N, int d, int n_ranks, const int *f, const int *perm, const 
         if (cufftPlan1d(&planK, k, CUFFT_Z2Z, N / k) != CUFFT_SUCCESS) {
             assert(false);
         }
-        cudaMalloc((void**) &d_c, N * sizeof(complex_t));
+        cudaMalloc((void**) &d_c, ((int64_t)d * (N / k)) * sizeof(complex_t));
         cudaMalloc((void**) &w_c, (N + 1) * sizeof(Complex));
         compute_w<<<(N + NUM_THREADS) / NUM_THREADS, NUM_THREADS>>>(w_c, N);
         cudaMemcpy(w_c + N, w_c, sizeof(Complex), cudaMemcpyDeviceToDevice);
